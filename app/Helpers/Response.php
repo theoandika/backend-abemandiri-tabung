@@ -2,53 +2,54 @@
 
 namespace App\Helpers;
 
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
 class Response {
-    static function created()
+    public static function created()
     {
         return response('', 201);
     }
 
-    static function updated()
+    public static function updated()
     {
         return response('', 204);
     }
 
-    static function deleted()
+    public static function deleted()
     {
         return response('', 204);
     }
 
-    static function success(string $message = null)
+    public static function success(?string $message = null)
     {
         return response()->json([
             'message' => $message ?? __('message.success')
         ], 200);
     }
 
-    static function successData($data, string $message = null)
+    public static function successData(mixed $data, ?string $message = null)
     {
         return response()->json([
             'data' => $data
         ], 200);
     }
 
-    static function error($message, $statusCode = 400)
+    public static function error(string $message, $statusCode = 400)
     {
         return response()->json([
             'message' => $message ?? __('message.fail')
         ], $statusCode);
     }
 
-    static function errorData($data, string $message, int $statusCode = 400){
+    public static function errorData(mixed $data, string $message, int $statusCode = 400){
         return response()->json([
             'message' => $message ?? __('message.fail'),
             'data' => $data
         ], $statusCode);
     }
 
-    static function validation(array $errors)
+    public static function validation(array $errors)
     {
         $messageJoin = implode(', ', array_map(function($value) {
             return implode(', ', $value);
@@ -59,7 +60,7 @@ class Response {
         ], 422);
     }
 
-    static function internalError($message = null)
+    public static function internalError(?string $message = null)
     {
         Log::channel('single')->error("Internal error: ".$message);
         return response()->json([
@@ -67,7 +68,7 @@ class Response {
         ], 500);
     }
 
-    static function file($file)
+    public static function file(mixed $file)
     {
         return response()->file($file);
     }

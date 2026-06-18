@@ -6,6 +6,7 @@ namespace App\Models;
 use App\Traits\UuidGenerator;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -29,5 +30,10 @@ class User extends Authenticatable
             'level' => 'integer',
             'is_active' => 'boolean',
         ];
+    }
+
+    public function userSites(): HasMany
+    {
+        return $this->hasMany(UserSite::class);
     }
 }
