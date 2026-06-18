@@ -56,6 +56,15 @@ return [
             'report' => false,
         ],
 
+        'documents' => [
+            'driver' => 'local',
+            'root' => storage_path('app/public/documents'),
+            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/documents',
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),
@@ -84,6 +93,7 @@ return [
 
     'links' => [
         public_path('images') => storage_path('app/public/images'),
+        public_path('documents') => storage_path('app/public/documents'),
     ],
 
 ];
