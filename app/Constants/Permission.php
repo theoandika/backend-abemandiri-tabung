@@ -8,11 +8,29 @@ class Permission {
     protected array $permissions = [
         ['name' => 'Semua Akses', 'key' => 'manage-all'],
 
-        ['scope' => 'Omzet Cabang'],
-        ['name' => 'Lihat Omzet Cabang', 'key' => 'view-site-revenue'],
-        ['name' => 'Tambah Omzet Cabang', 'key' => 'create-site-revenue'],
-        ['name' => 'Ubah Omzet Cabang', 'key' => 'update-site-revenue'],
-        ['name' => 'Hapus Omzet Cabang', 'key' => 'delete-site-revenue'],
+        ['scope' => 'Supplier'],
+        ['name' => 'Lihat Supplier', 'key' => 'view-supplier'],
+        ['name' => 'Tambah Supplier', 'key' => 'create-supplier'],
+        ['name' => 'Ubah Supplier', 'key' => 'update-supplier'],
+        ['name' => 'Hapus Supplier', 'key' => 'delete-supplier'],
+
+        ['scode' => 'Jenis Isi Tabung'],
+        ['name' => 'Lihat Jenis Isi Tabung', 'key' => 'view-tube-content-type'],
+        ['name' => 'Tambah Jenis Isi Tabung', 'key' => 'create-tube-content-type'],
+        ['name' => 'Ubah Jenis Isi Tabung', 'key' => 'update-tube-content-type'],
+        ['name' => 'Hapus Jenis Isi Tabung', 'key' => 'delete-tube-content-type'],
+
+        ['scode' => 'Member'],
+        ['name' => 'Lihat Member', 'key' => 'view-member'],
+        ['name' => 'Tambah Member', 'key' => 'create-member'],
+        ['name' => 'Ubah Member', 'key' => 'update-member'],
+        ['name' => 'Hapus Member', 'key' => 'delete-member'],
+
+        ['scode' => 'Tabung'],
+        ['name' => 'Lihat Tabung', 'key' => 'view-tube'],
+        ['name' => 'Tambah Tabung', 'key' => 'create-tube'],
+        ['name' => 'Ubah Tabung', 'key' => 'update-tube'],
+        ['name' => 'Hapus Tabung', 'key' => 'delete-tube'],
     ];
 
     public function list(): Collection

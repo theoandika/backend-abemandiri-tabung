@@ -15,9 +15,9 @@ return new class extends Migration
             $table->id();
             $table->uuid('uid')->index();
             $table->string('number')->index();
-            $table->string('barcode')->index();
             $table->string('type');
-            $table->string('status');
+            $table->boolean('own');
+            $table->boolean('active');
             $table->timestamps();
         });
     }
