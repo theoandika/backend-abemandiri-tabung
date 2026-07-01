@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Tube extends Model
 {
@@ -57,10 +56,5 @@ class Tube extends Model
     public function tubeTransactions(): HasMany
     {
         return $this->hasMany(TubeTransaction::class);
-    }
-
-    public function photos(): MorphMany
-    {
-        return $this->morphMany(Image::class, 'imageable');
     }
 }

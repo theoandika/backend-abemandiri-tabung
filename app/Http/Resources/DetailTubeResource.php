@@ -21,7 +21,8 @@ class DetailTubeResource extends JsonResource
             'tube_content' => new DetailTubeContentTypeResource($this->latestTubeContent->tubeContentType),
             'type' => $this->type,
             'own' => $this->own,
-            'active' => $this->active
+            'active' => $this->active,
+            'photo' => $this->latestTubeBarcode?->photo?->url ?? null,
         ];
     }
 }
