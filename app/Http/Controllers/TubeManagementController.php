@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\ImageCompress;
 use App\Helpers\Response;
 use App\Http\Resources\DetailTubeResource;
 use App\Models\Image;
@@ -56,7 +57,7 @@ class TubeManagementController extends Controller
             'content' => 'bail|required|exists:tube_content_types,uid',
             'own' => 'bail|required|boolean',
             'active' => 'bail|required|boolean',
-            'photo' => 'bail|nullable|image|mimes:png,jpg,jpeg'
+            'photo' => 'bail|required_with:barcode|image|mimes:png,jpg,jpeg|max:10240'
         ], [
             'number.required' => 'Masukkan nomor tabung',
             'number.unique' => 'Nomor tabung sudah digunakan',
@@ -66,8 +67,10 @@ class TubeManagementController extends Controller
             'type.required' => 'Tentukan jenis tabung',
             'content.required' => 'Tentukan isi tabung',
             'own.required' => 'Tentukan pemilik tabung',
-            'active' => 'Tentukan status tabung',
-            'photo.mimes' => 'Format foto tidak valid. Gunakan format png dan jpg'
+            'active.required' => 'Tentukan status tabung',
+            'photo.required_with' => 'Masukkan foto tabung',
+            'photo.mimes' => 'Format foto tidak valid. Gunakan format png atau jpg',
+            'photo.max' => 'Ukuran foto maksimal 10MB'
         ]);
 
         DB::beginTransaction();
@@ -89,14 +92,18 @@ class TubeManagementController extends Controller
                 $tubeBarcode->tube()->associate($tube);
                 $tubeBarcode->barcode = $r->input('barcode');
                 $tubeBarcode->save();
-                if ($r->file('photo')) {
-                    $_photo = Storage::disk('images')->put('tube', $r->file('photo'));
-                    $photo = new Image;
-                    $photo->imageable()->associate($tubeBarcode);
-                    $photo->path = $_photo;
-                    $photo->type = 'tube';
-                    $photo->save();
-                }
+                
+                $optImage = ImageCompress::compress(
+                    $r->file('photo'),
+                    maxDimension: 2048,
+                    quality: 85
+                );
+                $_photo = Storage::disk('images')->put('tube', $optImage);
+                $photo = new Image;
+                $photo->imageable()->associate($tubeBarcode);
+                $photo->path = $_photo;
+                $photo->type = 'tube';
+                $photo->save();
             }
 
             DB::commit();
@@ -111,18 +118,25 @@ class TubeManagementController extends Controller
     {
         $tube = Tube::where('uid', $uid)->firstOrFail();
         $r->validate([
-            'number' => 'bail|required|string|max:50',
+            'number' => 'bail|required|string|unique:tubes,number,'.$tube->id.'|max:50',
+            'barcode' => 'bail|nullable|string|unique:tube_barcodes,barcode,'.$tube->latestTubeBarcode->id.'|max:50',
             'type' => 'bail|required|in:medical,industry',
             'content' => 'bail|required|exists:tube_content_types,uid',
             'own' => 'bail|required|boolean',
-            'active' => 'bail|required|boolean'
+            'active' => 'bail|required|boolean',
+            'photo' => 'bail|nullable|image|mimes:png,jpg,jpeg|max:10240'
         ], [
             'number.required' => 'Masukkan nomor tabung',
+            'number.unique' => 'Nomor tabung sudah digunakan',
             'number.max' => 'Nomor tabung maksimal 50 karakter',
+            'barcode.unique' => 'Kode barcode sudah digunakan',
+            'barcode.max' => 'Barcode maksimal 50 karakter',
             'type.required' => 'Tentukan jenis tabung',
             'content.required' => 'Tentukan isi tabung',
             'own.required' => 'Tentukan pemilik tabung',
-            'active' => 'Tentukan status tabung'
+            'active.required' => 'Tentukan status tabung',
+            'photo.mimes' => 'Format foto tidak valid. Gunakan format png atau jpg',
+            'photo.max' => 'Ukuran foto maksimal 10MB'
         ]);
 
         DB::beginTransaction();
@@ -140,6 +154,52 @@ class TubeManagementController extends Controller
                 $content->tube()->associate($tube);
                 $content->tubeContentType()->associate($tubeContent);
                 $content->save();
+            }
+
+            if ($r->filled('barcode')) {
+                if ($tube->barcode != $r->input('barcode')) {
+                    $tubeBarcode = new TubeBarcode;
+                    $tubeBarcode->tube()->associate($tube);
+                    $tubeBarcode->barcode = $r->input('barcode');
+                    $tubeBarcode->save();
+
+                    if (!$r->hasFile('photo')) {
+                        return Response::validation([
+                            'photo' => ['Masukkan foto tabung']
+                        ]);
+                    }
+
+                    $optImage = ImageCompress::compress(
+                        $r->file('photo'),
+                        maxDimension: 2048,
+                        quality: 85
+                    );
+                    $_photo = Storage::disk('images')->put('tube', $optImage);
+                    $photo = new Image;
+                    $photo->imageable()->associate($tubeBarcode);
+                    $photo->path = $_photo;
+                    $photo->type = 'tube';
+                    $photo->save();
+                } else {
+                    $currentBarcode = $tube->latestTubeBarcode;
+                    if ($r->hasFile('photo')) {
+                        if ($currentBarcode->photo) {
+                            $currentBarcode->photo->delete();
+                        }
+                        $reqImg = $r->file('photo');
+                        $optImage = ImageCompress::compress(
+                            $reqImg,
+                            maxDimension: 2048,
+                            quality: 85
+                        );
+                        $_photo = Storage::disk('images')->put('tube', $optImage);
+                        $photo = new Image;
+                        $photo->imageable()->associate($currentBarcode);
+                        $photo->path = $_photo;
+                        $photo->type = 'tube';
+                        $photo->save();
+                    }
+                }
             }
 
             DB::commit();

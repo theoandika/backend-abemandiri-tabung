@@ -11,16 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('tube_transactions', function (Blueprint $table) {
+        Schema::create('transaction_items', function (Blueprint $table) {
             $table->id();
-            $table->uuid('uid')->index();
-            $table->dateTime('date');
+            $table->foreignId('transaction_id')->constrained()->cascadeOnDelete();
             $table->foreignId('tube_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('site_id')->constrained()->cascadeOnDelete();
-            $table->nullableMorphs('locationable');
-            $table->string('transaction_type');
-            $table->string('tube_status');
-            $table->timestamps();
+            $table->foreignId('tube_transaction_id')->constrained()->cascadeOnDelete();
         });
     }
 
@@ -29,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('tube_transactions');
+        Schema::dropIfExists('transaction_items');
     }
 };

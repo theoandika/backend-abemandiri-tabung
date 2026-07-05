@@ -31,6 +31,15 @@ class Permission {
         ['name' => 'Tambah Tabung', 'key' => 'create-tube'],
         ['name' => 'Ubah Tabung', 'key' => 'update-tube'],
         ['name' => 'Hapus Tabung', 'key' => 'delete-tube'],
+
+        ['scode' => 'Barcode Tabung'],
+        ['name' => 'Lihat Barcode Tabung', 'key' => 'view-tube-barcode'],
+        ['name' => 'Ubah Barcode Tabung', 'key' => 'update-tube-barcode'],
+
+        ['scode' => 'Transaksi'],
+        ['name' => 'Lihat Transaksi', 'key' => 'view-transaction'],
+        ['name' => 'Tambah Transaksi', 'key' => 'create-transaction'],
+        ['name' => 'Scan Transaksi', 'key' => 'create-items-transaction'],
     ];
 
     public function list(): Collection

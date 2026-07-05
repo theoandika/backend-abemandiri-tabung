@@ -2,7 +2,6 @@
 
 namespace App\Helpers;
 
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
 class Response {
@@ -31,6 +30,7 @@ class Response {
     public static function successData(mixed $data, ?string $message = null)
     {
         return response()->json([
+            'message' => $message ?? __('message.success'),
             'data' => $data
         ], 200);
     }

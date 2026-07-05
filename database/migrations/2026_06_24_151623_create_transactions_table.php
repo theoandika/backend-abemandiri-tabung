@@ -17,8 +17,9 @@ return new class extends Migration
             $table->foreignId('site_id')->constrained()->cascadeOnDelete();
             $table->foreignId('member_id')->nullable()->constrained()->cascadeOnDelete();
             $table->dateTime('date');
-            $table->string('type');
-            $table->text('note');
+            $table->string('transaction_type');
+            $table->string('tube_status');
+            $table->text('note')->nullable();
             $table->timestamps();
         });
     }

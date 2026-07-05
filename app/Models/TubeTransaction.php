@@ -16,6 +16,11 @@ class TubeTransaction extends Model
         return $this->belongsTo(Tube::class);
     }
 
+    public function site(): BelongsTo
+    {
+        return $this->belongsTo(Site::class);
+    }
+
     public function locationable(): MorphTo
     {
         return $this->morphTo();

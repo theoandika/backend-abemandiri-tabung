@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('tube_barcodes', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uid')->unique();
             $table->foreignId('tube_id')->nullable()->constrained()->cascadeOnDelete();
             $table->string('barcode');
             $table->timestamps();

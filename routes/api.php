@@ -5,6 +5,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\MemberManagementController;
 use App\Http\Controllers\SiteManagementController;
 use App\Http\Controllers\SupplierManagementController;
+use App\Http\Controllers\TransactionManagementController;
+use App\Http\Controllers\TubeBarcodeManagementController;
 use App\Http\Controllers\TubeContentTypeManagementController;
 use App\Http\Controllers\TubeManagementController;
 use Illuminate\Support\Facades\Route;
@@ -66,6 +68,15 @@ Route::prefix('v1')->group(function () {
                 Route::post('/', [TubeManagementController::class, 'update'])->middleware('permission:update-tube')->name('tube.update');
                 Route::delete('/', [TubeManagementController::class, 'delete'])->middleware('permission:delete-tube')->name('tube.delete');
             });
+        });
+        Route::prefix('tube-barcodes')->group(function () {
+            Route::post('index', [TubeBarcodeManagementController::class, 'index'])->middleware('permission:view-tube-barcode')->name('tube-barcode.index');
+            Route::post('update', [TubeBarcodeManagementController::class, 'update'])->middleware('permission:update-tube-barcode')->name('tube-barcode.update');
+        });
+        Route::prefix('transactions')->group(function () {
+            Route::post('index', [TransactionManagementController::class, 'index'])->middleware('permission:view-transaction')->name('transaction.index');
+            Route::post('/', [TransactionManagementController::class, 'create'])->middleware('permission:create-transaction')->name('transaction.create');
+            Route::post('create-items', [TransactionManagementController::class, 'createItems'])->middleware('permission:create-items-transaction')->name('transaction.create-items');
         });
     });
 });
