@@ -55,6 +55,8 @@ class TransactionManagementController extends Controller
             'transaction_type' => 'bail|required|in:in,out,return,sell',
             'tube_status' => 'bail|required|in:filled,empty,broken,expired,display',
             'note' => 'bail|nullable|string|max:500',
+            'document' => 'bail|nullable|file|max:10240|mimes:pdf,jpg,jpeg,png',
+            'nominal' => 'bail|nullable|numeric|min:0',
         ], [
             'site.required' => 'Tentukan cabang',
             'date.required' => 'Masukkan tanggal transaksi',
@@ -62,6 +64,9 @@ class TransactionManagementController extends Controller
             'transaction_type.required' => 'Tentukan jenis transaksi',
             'tube_status.required' => 'Tentukan status tabung',
             'note.max' => 'Catatan maksimal 500 karakter',
+            'document.max' => 'Ukuran file maksimal 10MB',
+            'document.mimes' => 'Format file harus PDF, JPG, JPEG, atau PNG',
+            'nominal.min' => 'Nominal tidak valid'
         ]);
 
         DB::beginTransaction();
@@ -119,7 +124,7 @@ class TransactionManagementController extends Controller
                     ];
                     continue;
                 }
-                if ($tube?->barcode != $tubeBarcode->barcode) {
+                if ($tube->barcode != $tubeBarcode->barcode) {
                     $errorBarcodes[] = [
                         'barcode' => $barcode,
                         'message' => 'Kode barcode telah berubah'
@@ -129,18 +134,35 @@ class TransactionManagementController extends Controller
                 
                 $lastTransaction = $tube->latestTubeTransaction;
                 if ($lastTransaction) {
-                    // check if tube is available to distribute or sell
-                    if (($transaction->transaction_type == 'out' || $transaction->transaction_type == 'sell') && $tube->is_not_available_transaction) {
+                    // check if tube is not broken/expired/display
+                    if (($transaction->transaction_type == 'out' || $transaction->transaction_type == 'sell') && !$tube->is_status_ready_to_sell_member) {
                         $errorBarcodes[] = [
                             'barcode' => $barcode,
-                            'message' => 'Tabung tidak dapat diproses'
+                            'message' => 'Tabung rusak/afkir tidak dapat diproses'
                         ];
                         continue;
                     }
-                    if (($transaction->transaction_type == 'out' || $transaction->transaction_type == 'sell') && ($tube->position == 'member' || $tube->position == 'transit' || $tube->position == 'supplier')) {
+                    // check if tube already out of site
+                    if (($transaction->transaction_type == 'out' || $transaction->transaction_type == 'sell') && !$tube->is_position_ready_to_out_member) {
                         $errorBarcodes[] = [
                             'barcode' => $barcode,
-                            'message' => 'Tabung tidak dapat diproses'
+                            'message' => 'Tabung tidak dapat diproses. CODE: OUT-SITE'
+                        ];
+                        continue;
+                    }
+                    // check if tube already sold
+                    if ($lastTransaction->transaction_type == 'sell' && $tube->is_sold) {
+                        $errorBarcodes[] = [
+                            'barcode' => $barcode,
+                            'message' => 'Tabung telah dijual sebelumnya'
+                        ];
+                        continue;
+                    }
+                    // check if tube already in site
+                    if (($transaction->transaction_type == 'in' || $transaction->transaction_type == 'return') && $tube->position == 'site') {
+                        $errorBarcodes[] = [
+                            'barcode' => $barcode,
+                            'message' => 'Tabung tidak dapat diproses. CODE: IN-SITE'
                         ];
                         continue;
                     }

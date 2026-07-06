@@ -83,12 +83,37 @@ class Tube extends Model
         );
     }
 
-    protected function isNotAvailableTransaction(): Attribute
+    protected function isStatusReadyToSellMember(): Attribute
     {
         return Attribute::make(
             get: function ($value, $attr) {
                 $lastTransaction = TubeTransaction::where('tube_id', $attr['id'])->latest()->first();
-                if ($lastTransaction?->tube_status == 'broken' || $lastTransaction?->tube_status == 'expired' || $lastTransaction?->tube_status == 'display') {
+                if ($lastTransaction?->tube_status == 'broken' || $lastTransaction?->tube_status == 'expired') {
+                    return false;
+                }
+                return true;
+            }
+        );
+    }
+
+    protected function isPositionReadyToOutMember(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value, $attr) {
+                if ($this->position == 'member' || $this->position == 'transit' || $this->position == 'supplier') {
+                    return false;
+                }
+                return true;
+            }
+        );
+    }
+
+    protected function isSold(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value, $attr) {
+                $lastTransaction = TubeTransaction::where('tube_id', $attr['id'])->where('transaction_type', 'sell')->first();
+                if ($lastTransaction) {
                     return true;
                 }
                 return false;
@@ -96,15 +121,15 @@ class Tube extends Model
         );
     }
 
-    // check disini
-    protected function isNotAvailableToOut(): Attribute
+    protected function secondOwner(): Attribute
     {
         return Attribute::make(
             get: function ($value, $attr) {
-                if ($this->position == 'member' || $this->position == 'transit' || $this->position == 'supplier') {
-                    return true;
+                $lastTransaction = TubeTransaction::where('tube_id', $attr['id'])->where('transaction_type', 'sell')->first();
+                if ($lastTransaction) {
+                    return $lastTransaction->locationable;
                 }
-                return false;
+                return null;
             }
         );
     }
