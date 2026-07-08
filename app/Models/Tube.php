@@ -60,13 +60,13 @@ class Tube extends Model
         return Attribute::make(
             get: function ($value, $attr) {
                 $lastTransaction = TubeTransaction::where('tube_id', $attr['id'])->latest()->first();
-                if ($lastTransaction?->transaction_type == 'out' && $lastTransaction?->locationable_type == 'App\Models\Site') {
+                if ($lastTransaction?->transaction_type == 'out' && $lastTransaction?->locationable_type == null) {
                     return 'transit';
                 } else if ($lastTransaction?->transaction_type == 'out' && $lastTransaction?->locationable_type == 'App\Models\Member') {
                     return 'member';
                 } else if ($lastTransaction?->transaction_type == 'in' && $lastTransaction?->locationable_type == 'App\Models\Member') {
                     return 'site';
-                } else if ($lastTransaction?->transaction_type == 'in' && $lastTransaction?->locationable_type == 'App\Models\Site') {
+                } else if ($lastTransaction?->transaction_type == 'in' && $lastTransaction?->locationable_type == null) {
                     return 'site';
                 } else if ($lastTransaction?->transaction_type == 'return' && $lastTransaction?->locationable_type == 'App\Models\Member') {
                     return 'site';
@@ -130,6 +130,19 @@ class Tube extends Model
                     return $lastTransaction->locationable;
                 }
                 return null;
+            }
+        );
+    }
+
+    protected function own(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value, $attr) {
+                if ($attr['own']) {
+                    return !$this->is_sold;
+                } else {
+                    return $attr['own'];
+                }
             }
         );
     }

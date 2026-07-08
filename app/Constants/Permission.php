@@ -40,6 +40,8 @@ class Permission {
         ['name' => 'Lihat Transaksi', 'key' => 'view-transaction'],
         ['name' => 'Tambah Transaksi', 'key' => 'create-transaction'],
         ['name' => 'Scan Transaksi', 'key' => 'create-items-transaction'],
+        ['name' => 'Hapus Transaksi', 'key' => 'delete-transaction'],
+        ['name' => 'Hapus Item Transaksi', 'key' => 'delete-transaction-item'],
     ];
 
     public function list(): Collection

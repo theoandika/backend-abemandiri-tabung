@@ -76,7 +76,12 @@ Route::prefix('v1')->group(function () {
         Route::prefix('transactions')->group(function () {
             Route::post('index', [TransactionManagementController::class, 'index'])->middleware('permission:view-transaction')->name('transaction.index');
             Route::post('/', [TransactionManagementController::class, 'create'])->middleware('permission:create-transaction')->name('transaction.create');
-            Route::post('create-items', [TransactionManagementController::class, 'createItems'])->middleware('permission:create-items-transaction')->name('transaction.create-items');
+            Route::prefix('{uid}')->group(function () {
+                Route::post('create-items', [TransactionManagementController::class, 'createItems'])->middleware('permission:create-items-transaction')->name('transaction.create-items');
+                Route::get('/', [TransactionManagementController::class, 'detail'])->middleware('permission:view-transaction')->name('transaction.detail');
+                Route::delete('/', [TransactionManagementController::class, 'delete'])->middleware('permission:delete-transaction')->name('transaction.delete');
+                Route::delete('delete-item', [TransactionManagementController::class, 'deleteItem'])->middleware('permission:delete-transaction-item')->name('transaction.delete-item');
+            });
         });
     });
 });

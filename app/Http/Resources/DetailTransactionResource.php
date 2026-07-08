@@ -5,7 +5,7 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class SimpleTransactionResource extends JsonResource
+class DetailTransactionResource extends JsonResource
 {
     /**
      * Transform the resource into an array.
@@ -21,8 +21,10 @@ class SimpleTransactionResource extends JsonResource
             'date' => $this->date,
             'transaction_type' => $this->transaction_type,
             'tube_status' => $this->tube_status,
+            'note' => $this->note,
             'nominal' => $this->nominal,
-            'item_count' => $this->transactionItems()->count()
+            'document' => $this->document?->url,
+            'items' => DetailTransactionItemResource::collection($this->transactionItems),
         ];
     }
 }

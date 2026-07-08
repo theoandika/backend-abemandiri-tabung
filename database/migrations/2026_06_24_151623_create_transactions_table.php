@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('transaction_type');
             $table->string('tube_status');
             $table->text('note')->nullable();
+            $table->integer('nominal')->nullable();
             $table->timestamps();
         });
     }

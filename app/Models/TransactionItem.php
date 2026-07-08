@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\WithoutTimestamps;
 use Illuminate\Database\Eloquent\Model;
 
+#[WithoutTimestamps]
 class TransactionItem extends Model
-{
+{    
     public function transaction()
     {
         return $this->belongsTo(Transaction::class);
