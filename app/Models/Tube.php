@@ -46,8 +46,8 @@ class Tube extends Model
     {
         return Attribute::make(
             get: function ($value, $attr) {
-                $lastTransaction = TubeTransaction::where('tube_id', $attr['id'])->latest()->first();
-                if ($lastTransaction?->transaction_type == 'out' && $lastTransaction?->locationable_type == 'App\Models\Site') {
+                $lastTransaction = TubeTransaction::where('tube_id', $attr['id'])->latest('date')->first();
+                if ($lastTransaction?->transaction_type == 'out' && $lastTransaction?->locationable_type == null) {
                     return null;
                 }
                 return $lastTransaction?->site ?? null;
@@ -59,7 +59,7 @@ class Tube extends Model
     {
         return Attribute::make(
             get: function ($value, $attr) {
-                $lastTransaction = TubeTransaction::where('tube_id', $attr['id'])->latest()->first();
+                $lastTransaction = TubeTransaction::where('tube_id', $attr['id'])->latest('date')->first();
                 if ($lastTransaction?->transaction_type == 'out' && $lastTransaction?->locationable_type == null) {
                     return 'transit';
                 } else if ($lastTransaction?->transaction_type == 'out' && $lastTransaction?->locationable_type == 'App\Models\Member') {
@@ -70,12 +70,16 @@ class Tube extends Model
                     return 'site';
                 } else if ($lastTransaction?->transaction_type == 'return' && $lastTransaction?->locationable_type == 'App\Models\Member') {
                     return 'site';
-                } else if ($lastTransaction?->transaction_type == 'out' && $lastTransaction?->locationable_type == 'App\Models\Supplier') {
+                } else if ($lastTransaction?->transaction_type == 'refill' && $lastTransaction?->locationable_type == 'App\Models\Supplier') {
                     return 'supplier';
-                } else if ($lastTransaction?->transaction_type == 'in' && $lastTransaction?->locationable_type == 'App\Models\Supplier') {
+                } else if ($lastTransaction?->transaction_type == 'filled' && $lastTransaction?->locationable_type == 'App\Models\Supplier') {
                     return 'site';
                 } else if ($lastTransaction?->transaction_type == 'sell' && $lastTransaction?->locationable_type == 'App\Models\Member') {
                     return 'member';
+                } else if ($lastTransaction?->transaction_type == 'fixing' && $lastTransaction?->locationable_type == 'App\Models\Supplier') {
+                    return 'supplier';
+                } else if ($lastTransaction?->transaction_type == 'fixed' && $lastTransaction?->locationable_type == 'App\Models\Supplier') {
+                    return 'site';
                 } else {
                     return 'unknown';
                 }
@@ -83,24 +87,12 @@ class Tube extends Model
         );
     }
 
-    protected function isStatusReadyToSellMember(): Attribute
+    protected function isUsable(): Attribute
     {
         return Attribute::make(
             get: function ($value, $attr) {
-                $lastTransaction = TubeTransaction::where('tube_id', $attr['id'])->latest()->first();
+                $lastTransaction = TubeTransaction::where('tube_id', $attr['id'])->latest('date')->first();
                 if ($lastTransaction?->tube_status == 'broken' || $lastTransaction?->tube_status == 'expired') {
-                    return false;
-                }
-                return true;
-            }
-        );
-    }
-
-    protected function isPositionReadyToOutMember(): Attribute
-    {
-        return Attribute::make(
-            get: function ($value, $attr) {
-                if ($this->position == 'member' || $this->position == 'transit' || $this->position == 'supplier') {
                     return false;
                 }
                 return true;
@@ -143,6 +135,16 @@ class Tube extends Model
                 } else {
                     return $attr['own'];
                 }
+            }
+        );
+    }
+
+    protected function status(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value, $attr) {
+                $lastTransaction = TubeTransaction::where('tube_id', $attr['id'])->latest('date')->first();
+                return $lastTransaction?->tube_status;
             }
         );
     }

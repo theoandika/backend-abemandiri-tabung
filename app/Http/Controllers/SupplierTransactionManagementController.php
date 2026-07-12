@@ -3,20 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\Response;
-use App\Http\Resources\DetailTransactionResource;
-use App\Http\Resources\SimpleTransactionResource;
-use App\Models\Document;
-use App\Models\Member;
+use App\Http\Resources\DetailSupplierTransactionResource;
+use App\Http\Resources\SimpleSupplierTransactionResource;
 use App\Models\Site;
-use App\Models\Transaction;
-use App\Models\TransactionItem;
+use App\Models\Supplier;
+use App\Models\SupplierTransaction;
+use App\Models\SupplierTransactionItem;
 use App\Models\TubeBarcode;
 use App\Models\TubeTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
-class TransactionManagementController extends Controller
+class SupplierTransactionManagementController extends Controller
 {
     public function index(Request $r)
     {
@@ -28,12 +26,12 @@ class TransactionManagementController extends Controller
         ]);
 
         try {
-            $_transactions = Transaction::when($r->filled('search'), function ($query) use ($r) {
+            $_transactions = SupplierTransaction::when($r->filled('search'), function ($query) use ($r) {
                 $query->where(function ($q) use ($r) {
                     $q->whereHas('site', function ($q2) use ($r) {
                         $q2->where('name', 'like', '%' . $r->input('search') . '%');
                     })
-                    ->orWhereHas('member', function ($q3) use ($r) {
+                    ->orWhereHas('supplier', function ($q3) use ($r) {
                         $q3->where('name', 'like', '%' . $r->input('search') . '%');
                     });
                 });
@@ -48,7 +46,7 @@ class TransactionManagementController extends Controller
             } else {
                 $transactions = $_transactions->get();
             }
-            return SimpleTransactionResource::collection($transactions);
+            return SimpleSupplierTransactionResource::collection($transactions);
         } catch (\Throwable $th) {
             return Response::internalError($th->getMessage());
         }
@@ -58,12 +56,12 @@ class TransactionManagementController extends Controller
     {
         $user = $r->user();
         $sites = $user->userSites->pluck('site_id');
-        $transaction = Transaction::where('uid', $uid)
+        $transaction = SupplierTransaction::where('uid', $uid)
         ->when($user->level != 0, function ($q) use ($sites) {
             $q->whereIn('site_id', $sites);
         })
         ->firstOrFail();
-        return new DetailTransactionResource($transaction);
+        return new DetailSupplierTransactionResource($transaction);
     }
 
     public function create(Request $r)
@@ -72,34 +70,32 @@ class TransactionManagementController extends Controller
         $sites = $user->userSites->pluck('site_id');
         $r->validate([
             'site' => 'bail|required|exists:sites,uid',
-            'member' => 'bail|nullable|exists:members,uid',
+            'supplier' => 'bail|required|exists:suppliers,uid',
             'date' => 'bail|required|date_format:Y-m-d H:i|before:tomorrow',
-            'transaction_type' => 'bail|required|in:in,out,return,sell',
-            'tube_status' => 'bail|required|in:filled,empty,broken,expired,display',
+            'transaction_type' => 'bail|required|in:refill,filled,fixing,fixed',
+            'tube_status' => 'bail|nullable|in:filled,empty,broken',
             'note' => 'bail|nullable|string|max:500',
-            'document' => 'bail|nullable|file|max:10240|mimes:pdf,jpg,jpeg,png',
-            'nominal' => 'bail|nullable|numeric|min:0',
             'barcodes' => 'bail|required|array|min:1',
-            'barcodes.*' => 'bail|required|string',
+            'barcodes.*' => 'bail|required|string'
         ], [
             'site.required' => 'Tentukan cabang',
+            'supplier.required' => 'Tentukan supplier',
             'date.required' => 'Masukkan tanggal transaksi',
             'date.date_format' => 'Format tanggal tidak valid',
             'date.before' => 'Tanggal tidak valid',
             'transaction_type.required' => 'Tentukan jenis transaksi',
-            'tube_status.required' => 'Tentukan status tabung',
             'note.max' => 'Catatan maksimal 500 karakter',
-            'document.max' => 'Ukuran file maksimal 10MB',
-            'document.mimes' => 'Format file harus PDF, JPG, JPEG, atau PNG',
-            'nominal.min' => 'Nominal tidak valid',
             'barcodes.required' => 'Masukkan barcode tabung',
-            'barcodes.min' => 'Input tidak sesuai',
+            'barcodes.min' => 'Masukkan barcode tabung',
             'barcodes.*.required' => 'Masukkan barcode tabung'
         ]);
 
-        if ($r->input('transaction_type') == 'sell' && $r->isNotFilled('member')) {
-            return Response::validation(['member' => ['Tentukan member']]);
+        if ($r->input('transaction_type') == 'fixed') {
+            if($r->isNotFilled('tube_status')) {
+                return Response::validation(['tube_status' => ['Tentukan status tabung']]);
+            }
         }
+
         $site = Site::where('uid', $r->input('site'))
         ->when($user->level != 0, function ($q) use ($sites) {
             $q->whereIn('site_id', $sites);
@@ -110,28 +106,20 @@ class TransactionManagementController extends Controller
 
         DB::beginTransaction();
         try {
-            $transaction = new Transaction;
+            $supplier = Supplier::where('uid', $r->input('supplier'))->first();
+            $transaction = new SupplierTransaction;
             $transaction->site()->associate($site);
-            if ($r->filled('member')) {
-                $member = Member::where('uid', $r->input('member'))->firstOrFail();
-                $transaction->member()->associate($member);
-            }
+            $transaction->supplier()->associate($supplier);
             $transaction->date = $r->input('date');
             $transaction->transaction_type = $r->input('transaction_type');
-            $transaction->tube_status = $r->input('tube_status');
+            $transaction->tube_status = match ($r->input('transaction_type')) {
+                'refill' => 'empty',
+                'filled' => 'filled',
+                'fixing' => 'broken',
+                'fixed' => $r->input('tube_status')
+            };
             $transaction->note = $r->input('note');
-            $transaction->nominal = $r->input('nominal');
             $transaction->save();
-
-            if ($r->hasFile('document')) {
-                $file = $r->file('document');
-                $path = Storage::disk('documents')->put('transactions', $file);
-                $document = new Document;
-                $document->documentable()->associate($transaction);
-                $document->type = 'transaction';
-                $document->path = $path;
-                $document->save();
-            }
 
             $errorBarcodes = [];
             foreach ($r->input('barcodes') as $barcode) {
@@ -161,43 +149,35 @@ class TransactionManagementController extends Controller
                     ];
                     continue;
                 }
-                // check if tube is in the same site as transaction for out and sell transaction type
-                if (($transaction->transaction_type == 'out' || $transaction->transaction_type == 'sell') && $tube->site?->id !== $transaction->site_id) {
-                    $errorBarcodes[] = [
-                        'barcode' => $barcode,
-                        'message' => 'Tabung tidak ditemukan'
-                    ];
-                    continue;
-                }
-                // check tube already sold
-                if ($transaction->transaction_type == 'sell' && !$tube->own) {
-                    $errorBarcodes[] = [
-                        'barcode' => $barcode,
-                        'message' => 'Tabung NON DM tidak dapat dijual'
-                    ];
-                    continue;
-                }
-                // check if tube is not broken/expired
-                if (($transaction->transaction_type == 'out' || $transaction->transaction_type == 'sell') && !$tube->is_usable) {
+                // check if tube is not broken/expired while trying to refill
+                if ($transaction->transaction_type == 'refill' && !$tube->is_usable) {
                     $errorBarcodes[] = [
                         'barcode' => $barcode,
                         'message' => 'Tabung rusak/afkir tidak dapat diproses'
                     ];
                     continue;
                 }
-                // check if tube already out of site
-                if (($transaction->transaction_type == 'out' || $transaction->transaction_type == 'sell') && $tube->position != 'site') {
+                // check if tube is in the same site as transaction
+                if (($transaction->transaction_type == 'refill' || $transaction->transaction_type == 'fixing') && $tube->site?->id !== $site->id) {
+                    $errorBarcodes[] = [
+                        'barcode' => $barcode,
+                        'message' => 'Tabung tidak ditemukan'
+                    ];
+                    continue;
+                }
+                // check tube position should be in site
+                if (($transaction->transaction_type == 'refill' || $transaction->transaction_type == 'fixing') && $tube->position != 'site') {
                     $errorBarcodes[] = [
                         'barcode' => $barcode,
                         'message' => 'Tabung tidak dapat diproses. CODE: OUT-SITE'
                     ];
                     continue;
                 }
-                // check if tube already in site
-                if (($transaction->transaction_type == 'in' || $transaction->transaction_type == 'return') && $tube->position == 'site') {
+                // check if tube position should be in supplier
+                if (($transaction->transaction_type == 'filled' || $transaction->transaction_type == 'fixed') && $tube->position != 'supplier') {
                     $errorBarcodes[] = [
                         'barcode' => $barcode,
-                        'message' => 'Tabung tidak dapat diproses. CODE: IN-SITE'
+                        'message' => 'Tabung tidak dapat diproses. CODE: OUT-SUPPLIER'
                     ];
                     continue;
                 }
@@ -205,17 +185,19 @@ class TransactionManagementController extends Controller
                 $tubeTransaction = new TubeTransaction;
                 $tubeTransaction->tube()->associate($tube);
                 $tubeTransaction->site()->associate($site);
-                if ($r->filled('member')) {
-                    $member = Member::where('uid', $r->input('member'))->firstOrFail();
-                    $tubeTransaction->locationable()->associate($member);
-                }
+                $tubeTransaction->locationable()->associate($supplier);
                 $tubeTransaction->date = $r->input('date');
                 $tubeTransaction->transaction_type = $r->input('transaction_type');
-                $tubeTransaction->tube_status = $r->input('tube_status');
+                $tubeTransaction->tube_status = match ($r->input('transaction_type')) {
+                    'refill' => 'empty',
+                    'filled' => 'filled',
+                    'fixing' => 'broken',
+                    'fixed' => $r->input('tube_status')
+                };
                 $tubeTransaction->save();
 
-                $transactionItem = new TransactionItem;
-                $transactionItem->transaction()->associate($transaction);
+                $transactionItem = new SupplierTransactionItem;
+                $transactionItem->supplierTransaction()->associate($transaction);
                 $transactionItem->tube()->associate($tube);
                 $transactionItem->tubeTransaction()->associate($tubeTransaction);
                 $transactionItem->save();
@@ -232,38 +214,17 @@ class TransactionManagementController extends Controller
         }
     }
 
-    // public function createItems(Request $r, string $uid)
-    // {
-    //     $r->validate([
-    //         'barcodes' => 'bail|required|array|min:1',
-    //         'barcodes.*' => 'bail|required|string',
-    //     ], [
-    //         'barcodes.required' => 'Input tidak sesuai',
-    //         'barcodes.min' => 'Input tidak sesuai',
-    //     ]);
-
-    //     $transaction = Transaction::where('uid', $uid)->firstOrFail();
-    //     DB::beginTransaction();
-    //     try {
-            
-    //         return Response::created();
-    //     } catch (\Throwable $th) {
-    //         DB::rollBack();
-    //         return Response::internalError($th->getMessage());
-    //     }
-    // }
-
     public function delete(Request $r, string $uid)
     {
         $user = $r->user();
         $sites = $user->userSites->pluck('site_id');
-        $transaction = Transaction::where('uid', $uid)
+        $transaction = SupplierTransaction::where('uid', $uid)
         ->when($user->level != 0, function ($q) use ($sites) {
             $q->whereIn('site_id', $sites);
         })
         ->firstOrFail();
         try {
-            foreach ($transaction->transactionItems as $transactionItem) {
+            foreach ($transaction->supplierTransactionItems as $transactionItem) {
                 if ($transactionItem->tubeTransaction->is_past) {
                     return Response::error('Transaksi tidak dapat dihapus');
                 }
@@ -276,20 +237,4 @@ class TransactionManagementController extends Controller
             return Response::internalError($th->getMessage());
         }
     }
-
-    // public function deleteItem(string $uid)
-    // {
-    //     $transactionItem = TransactionItem::whereRelation('tube', 'uid', $uid)->firstOrFail();
-    //     try {
-    //         if ($transactionItem->tubeTransaction->is_past) {
-    //             return Response::error('Item tidak dapat dihapus');
-    //         }
-    //         $transactionItem->tubeTransaction->delete();
-    //         $transactionItem->delete();
-    //         DB::commit();
-    //     } catch (\Throwable $th) {
-    //         DB::rollBack();
-    //         return Response::internalError($th->getMessage());
-    //     }
-    // }
 }

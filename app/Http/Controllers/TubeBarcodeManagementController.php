@@ -16,6 +16,8 @@ class TubeBarcodeManagementController extends Controller
 {
     public function index(Request $r)
     {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
         $r->validate([
             'search' => 'bail|nullable|string|max:50',
             'paginate' => 'bail|nullable|integer|min:1'
@@ -26,6 +28,13 @@ class TubeBarcodeManagementController extends Controller
                 $q->where(function ($q) use ($search) {
                     $q->where('number', 'like', '%'.$search.'%')
                     ->orWhereRelation('latestTubeBarcode', 'barcode', 'like', '%'.$search.'%');
+                });
+            })
+            ->when($user->level != 0, function ($q) use ($sites) {
+                $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
+                    $q->whereIn('site_id', $sites)
+                    ->whereNot('transaction_type', 'out')
+                    ->whereNotNull('locationable_type');
                 });
             })
             ->orderBy('number');
@@ -42,6 +51,8 @@ class TubeBarcodeManagementController extends Controller
 
     public function update(Request $r)
     {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
         $r->validate([
             'tube_barcodes' => 'bail|required|array',
             'tube_barcodes.*.tube_uid' => 'bail|required|exists:tubes,uid',
@@ -60,7 +71,18 @@ class TubeBarcodeManagementController extends Controller
         try {
             $tubeBarcodes = $r->input('tube_barcodes');
             foreach ($tubeBarcodes as $key => $tubeBarcode) {
-                $tube = Tube::where('uid', $tubeBarcode['tube_uid'])->firstOrFail();
+                $tube = Tube::where('uid', $tubeBarcode['tube_uid'])
+                ->when($user->level != 0, function ($q) use ($sites) {
+                    $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
+                        $q->whereIn('site_id', $sites)
+                        ->whereNot('transaction_type', 'out')
+                        ->whereNotNull('locationable_type');
+                    });
+                })
+                ->first();
+                if (!$tube) {
+                    return Response::validation(["tube_barcodes.{$key}.tube_id" => ['Tabung tidak ditemukan']]);
+                }
                 if ($tube->barcode != $tubeBarcode['barcode']) {
                     $barcode = new TubeBarcode;
                     $barcode->tube()->associate($tube);

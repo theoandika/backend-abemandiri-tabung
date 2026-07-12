@@ -72,4 +72,11 @@ class Response {
     {
         return response()->file($file);
     }
+
+    public static function notFound()
+    {
+        return response()->json([
+            'message' => __('message.not_found')
+        ], 404);
+    }
 }

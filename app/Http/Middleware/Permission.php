@@ -6,7 +6,6 @@ use App\Models\RolePermission;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use App\Helpers\Response as ResponseHelper;
 
 class Permission
 {
@@ -31,6 +30,6 @@ class Permission
             }
         }
 
-        return ResponseHelper::error(__('message.access_denied'), 403);
+        abort(404);
     }
 }

@@ -3,12 +3,16 @@
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\MemberManagementController;
+use App\Http\Controllers\RoleManagementController;
+use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SiteManagementController;
 use App\Http\Controllers\SupplierManagementController;
+use App\Http\Controllers\SupplierTransactionManagementController;
 use App\Http\Controllers\TransactionManagementController;
 use App\Http\Controllers\TubeBarcodeManagementController;
 use App\Http\Controllers\TubeContentTypeManagementController;
 use App\Http\Controllers\TubeManagementController;
+use App\Http\Controllers\UserManagementController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -20,14 +24,39 @@ Route::prefix('v1')->group(function () {
         Route::prefix('account')->group(function () {
             Route::get('detail', [AccountController::class, 'detail'])->name('account.detail');
         });
+        Route::prefix('permissions')->middleware(['administrator'])->group(function () {
+            Route::get('/', [RolePermissionController::class, 'all'])->name('permission.all');
+        });
+        Route::prefix('roles')->middleware(['administrator'])->group(function () {
+            Route::get('/', [RoleManagementController::class, 'all'])->name('role.all');
+            Route::post('index', [RoleManagementController::class, 'index'])->name('role.index');
+            Route::post('/', [RoleManagementController::class, 'create'])->name('role.create');
+            Route::prefix('{uid}')->group(function () {
+                Route::get('/', [RoleManagementController::class, 'detail'])->name('role.detail');
+                Route::post('/', [RoleManagementController::class, 'update'])->name('role.update');
+                Route::delete('/', [RoleManagementController::class, 'delete'])->name('role.delete');
+            });
+        });
+        Route::prefix('users')->middleware(['administrator'])->group(function () {
+            Route::get('/', [UserManagementController::class, 'all'])->name('user.all');
+            Route::post('index', [UserManagementController::class, 'index'])->name('user.index');
+            Route::post('/', [UserManagementController::class, 'create'])->name('user.create');
+            Route::prefix('{uid}')->group(function () {
+                Route::get('/', [UserManagementController::class, 'detail'])->name('user.detail');
+                Route::post('/', [UserManagementController::class, 'update'])->name('user.update');
+                Route::delete('/', [UserManagementController::class, 'delete'])->name('user.delete');
+            });
+        });
         Route::prefix('sites')->group(function () {
             Route::get('/', [SiteManagementController::class, 'all'])->name('site.all');
-            Route::post('index', [SiteManagementController::class, 'index'])->name('site.index');
-            Route::post('/', [SiteManagementController::class, 'create'])->name('site.create');
-            Route::prefix('{uid}')->group(function () {
-                Route::get('/', [SiteManagementController::class, 'detail'])->name('site.detail');
-                Route::post('/', [SiteManagementController::class, 'update'])->name('site.update');
-                Route::delete('/', [SiteManagementController::class, 'delete'])->name('site.delete');
+            Route::middleware('administrator')->group(function () {
+                Route::post('index', [SiteManagementController::class, 'index'])->name('site.index');
+                Route::post('/', [SiteManagementController::class, 'create'])->name('site.create');
+                Route::prefix('{uid}')->group(function () {
+                    Route::get('/', [SiteManagementController::class, 'detail'])->name('site.detail');
+                    Route::post('/', [SiteManagementController::class, 'update'])->name('site.update');
+                    Route::delete('/', [SiteManagementController::class, 'delete'])->name('site.delete');
+                });
             });
         });
         Route::prefix('suppliers')->group(function () {
@@ -77,10 +106,18 @@ Route::prefix('v1')->group(function () {
             Route::post('index', [TransactionManagementController::class, 'index'])->middleware('permission:view-transaction')->name('transaction.index');
             Route::post('/', [TransactionManagementController::class, 'create'])->middleware('permission:create-transaction')->name('transaction.create');
             Route::prefix('{uid}')->group(function () {
-                Route::post('create-items', [TransactionManagementController::class, 'createItems'])->middleware('permission:create-items-transaction')->name('transaction.create-items');
+                // Route::post('create-items', [TransactionManagementController::class, 'createItems'])->middleware('permission:create-items-transaction')->name('transaction.create-items');
                 Route::get('/', [TransactionManagementController::class, 'detail'])->middleware('permission:view-transaction')->name('transaction.detail');
                 Route::delete('/', [TransactionManagementController::class, 'delete'])->middleware('permission:delete-transaction')->name('transaction.delete');
-                Route::delete('delete-item', [TransactionManagementController::class, 'deleteItem'])->middleware('permission:delete-transaction-item')->name('transaction.delete-item');
+                // Route::delete('delete-item', [TransactionManagementController::class, 'deleteItem'])->middleware('permission:delete-transaction-item')->name('transaction.delete-item');
+            });
+        });
+        Route::prefix('supplier-transactions')->group(function () {
+            Route::post('index', [SupplierTransactionManagementController::class, 'index'])->middleware('permission:view-supplier-transaction')->name('supplier-transaction.view');
+            Route::post('/', [SupplierTransactionManagementController::class, 'create'])->middleware('permission:create-supplier-transaction')->name('supplier-transaction.create');
+            Route::prefix('{uid}')->group(function () {
+                Route::get('/', [SupplierTransactionManagementController::class, 'detail'])->middleware('permission:view-supplier-transaction')->name('supplier-transaction.detail');
+                Route::delete('/', [SupplierTransactionManagementController::class, 'delete'])->middleware('permission:delete-supplier-transaction')->name('supplier-transaction.delete');
             });
         });
     });

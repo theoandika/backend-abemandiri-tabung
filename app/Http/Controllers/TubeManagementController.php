@@ -18,6 +18,8 @@ class TubeManagementController extends Controller
 {
     public function index(Request $r)
     {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
         $r->validate([
             'search' => 'bail|nullable|string|max:50',
             'paginate' => 'bail|nullable|integer|min:1'
@@ -28,6 +30,13 @@ class TubeManagementController extends Controller
                 $q->where(function ($q) use ($search) {
                     $q->where('number', 'like', '%'.$search.'%')
                     ->orWhereRelation('latestTubeBarcode', 'barcode', 'like', '%'.$search.'%');
+                });
+            })
+            ->when($user->level != 0, function ($q) use ($sites) {
+                $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
+                    $q->whereIn('site_id', $sites)
+                    ->whereNot('transaction_type', 'out')
+                    ->whereNotNull('locationable_type');
                 });
             })
             ->orderBy('number');
@@ -42,9 +51,19 @@ class TubeManagementController extends Controller
         }
     }
 
-    public function detail(string $uid)
+    public function detail(Request $r, string $uid)
     {
-        $tube = Tube::where('uid', $uid)->firstOrFail();
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+        $tube = Tube::where('uid', $uid)
+        ->when($user->level != 0, function ($q) use ($sites) {
+            $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
+                $q->whereIn('site_id', $sites)
+                ->whereNot('transaction_type', 'out')
+                ->whereNotNull('locationable_type');
+            });
+        })
+        ->firstOrFail();
         return new DetailTubeResource($tube);
     }
 
@@ -116,7 +135,17 @@ class TubeManagementController extends Controller
 
     public function update(Request $r, string $uid)
     {
-        $tube = Tube::where('uid', $uid)->firstOrFail();
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+        $tube = Tube::where('uid', $uid)
+        ->when($user->level != 0, function ($q) use ($sites) {
+            $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
+                $q->whereIn('site_id', $sites)
+                ->whereNot('transaction_type', 'out')
+                ->whereNotNull('locationable_type');
+            });
+        })
+        ->firstOrFail();
         $r->validate([
             'number' => 'bail|required|string|unique:tubes,number,'.$tube->id.'|max:50',
             'barcode' => 'bail|nullable|string|unique:tube_barcodes,barcode,'.$tube->latestTubeBarcode->id.'|max:50',
@@ -210,9 +239,19 @@ class TubeManagementController extends Controller
         }
     }
 
-    public function delete(string $uid)
+    public function delete(Request $r, string $uid)
     {
-        $tube = Tube::where('uid', $uid)->firstOrFail();
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+        $tube = Tube::where('uid', $uid)
+        ->when($user->level != 0, function ($q) use ($sites) {
+            $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
+                $q->whereIn('site_id', $sites)
+                ->whereNot('transaction_type', 'out')
+                ->whereNotNull('locationable_type');
+            });
+        })
+        ->firstOrFail();
         DB::beginTransaction();
         try {
             $tube->delete();

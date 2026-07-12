@@ -39,9 +39,12 @@ class Permission {
         ['scode' => 'Transaksi'],
         ['name' => 'Lihat Transaksi', 'key' => 'view-transaction'],
         ['name' => 'Tambah Transaksi', 'key' => 'create-transaction'],
-        ['name' => 'Scan Transaksi', 'key' => 'create-items-transaction'],
         ['name' => 'Hapus Transaksi', 'key' => 'delete-transaction'],
-        ['name' => 'Hapus Item Transaksi', 'key' => 'delete-transaction-item'],
+
+        ['scode' => 'Transaksi Supplier'],
+        ['name' => 'Lihat Transaksi', 'key' => 'view-supplier-transaction'],
+        ['name' => 'Tambah Transaksi', 'key' => 'create-supplier-transaction'],
+        ['name' => 'Hapus Transaksi', 'key' => 'delete-supplier-transaction'],
     ];
 
     public function list(): Collection

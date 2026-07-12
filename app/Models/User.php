@@ -6,6 +6,7 @@ namespace App\Models;
 use App\Traits\UuidGenerator;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -31,6 +32,15 @@ class User extends Authenticatable
             'level' => 'integer',
             'is_active' => 'boolean',
         ];
+    }
+
+    protected function sites(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value, $attr) {
+                return $this->userSites()->with(['site'])->get()->pluck('site')->values();
+            }
+        );
     }
 
     public function role(): BelongsTo
