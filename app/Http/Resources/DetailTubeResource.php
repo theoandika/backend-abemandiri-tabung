@@ -15,7 +15,7 @@ class DetailTubeResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'uid' => $this->uid,
+            'id' => $this->uid,
             'site' => new SimpleSiteResource($this->site),
             'number' => $this->number,
             'barcode' => $this->barcode,
