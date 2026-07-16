@@ -73,11 +73,11 @@ class TransactionManagementController extends Controller
         $r->validate([
             'site' => 'bail|required|exists:sites,uid',
             'member' => 'bail|nullable|exists:members,uid',
-            'date' => 'bail|required|date_format:Y-m-d H:i|before:tomorrow',
+            'date' => 'bail|required|date_format:Y-m-d H:i',
             'transaction_type' => 'bail|required|in:in,out,return,sell',
             'tube_status' => 'bail|required|in:filled,empty,broken,expired,display',
             'note' => 'bail|nullable|string|max:500',
-            'document' => 'bail|nullable|file|max:10240|mimes:pdf,jpg,jpeg,png',
+            'document' => 'bail|nullable|file|max:10240|mimes:pdf',
             'nominal' => 'bail|nullable|numeric|min:0',
             'barcodes' => 'bail|required|array|min:1',
             'barcodes.*' => 'bail|required|string',
@@ -85,7 +85,6 @@ class TransactionManagementController extends Controller
             'site.required' => 'Tentukan cabang',
             'date.required' => 'Masukkan tanggal transaksi',
             'date.date_format' => 'Format tanggal tidak valid',
-            'date.before' => 'Tanggal tidak valid',
             'transaction_type.required' => 'Tentukan jenis transaksi',
             'tube_status.required' => 'Tentukan status tabung',
             'note.max' => 'Catatan maksimal 500 karakter',
@@ -177,6 +176,16 @@ class TransactionManagementController extends Controller
                     ];
                     continue;
                 }
+                // check if tube is sold but trying to distribute to another member
+                if ($r->filled('member')) {
+                    if ($transaction->transaction_type == 'out' && $tube->second_owner != null && $tube->second_owner != $member) {
+                        $errorBarcodes[] = [
+                            'barcode' => $barcode,
+                            'message' => "Tabung sudah terjual kepada {$tube->second_owner->code}-{$tube->second_owner->name}"
+                        ];
+                        continue;
+                    }
+                }
                 // check if tube is not broken/expired
                 if (($transaction->transaction_type == 'out' || $transaction->transaction_type == 'sell') && !$tube->is_usable) {
                     $errorBarcodes[] = [
@@ -222,7 +231,7 @@ class TransactionManagementController extends Controller
             }
             if (!empty($errorBarcodes)) {
                 $errorCount = count($errorBarcodes);
-                return Response::successData($errorBarcodes, "{$errorCount} tabung tidak dapat diproses");
+                return Response::errorData($errorBarcodes, "{$errorCount} tabung tidak dapat diproses", 422);
             }
             DB::commit();
             return Response::created();

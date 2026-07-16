@@ -63,9 +63,10 @@ class SiteManagementController extends Controller
             'name' => 'bail|required|string|max:100',
             'address' => 'bail|nullable|string|max:200',
         ], [
-            'name.required' => 'Silahkan masukkan nama cabang',
-            'name.max' => 'Masukkan nama cabang maksimal 100 karakter',
-            'address.max' => 'Masukkan alamat cabang maksimal 200 karakter',
+            'code.required' => 'Masukkan kode cabang',
+            'name.required' => 'Masukkan nama cabang',
+            'name.max' => 'Nama cabang maksimal 100 karakter',
+            'address.max' => 'Alamat maksimal 200 karakter',
         ]);
 
         DB::beginTransaction();
@@ -91,9 +92,10 @@ class SiteManagementController extends Controller
             'name' => 'bail|required|string|max:100',
             'address' => 'bail|nullable|string|max:200',
         ], [
-            'name.required' => 'Silahkan masukkan nama cabang',
-            'name.max' => 'Masukkan nama cabang maksimal 100 karakter',
-            'address.max' => 'Masukkan alamat cabang maksimal 200 karakter',
+            'code.required' => 'Masukkan kode cabang',
+            'name.required' => 'Masukkan nama cabang',
+            'name.max' => 'Nama cabang maksimal 100 karakter',
+            'address.max' => 'Alamat maksimal 200 karakter',
         ]);
 
         DB::beginTransaction();

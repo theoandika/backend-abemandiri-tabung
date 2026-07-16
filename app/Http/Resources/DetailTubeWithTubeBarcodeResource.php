@@ -15,13 +15,13 @@ class DetailTubeWithTubeBarcodeResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'uid' => $this->uid,
+            'id' => $this->uid,
             'number' => $this->number,
             'barcode' => $this->barcode,
             'tube_content' => new DetailTubeContentTypeResource($this->latestTubeContent->tubeContentType),
             'type' => $this->type,
             'tube_barcodes' => DetailTubeBarcodeResource::collection($this->tubeBarcodes()->orderBy('created_at', 'desc')->get()),
-            'site' => $this->site,
+            'site' => new SimpleSiteResource($this->site),
         ];
     }
 }

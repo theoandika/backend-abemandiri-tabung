@@ -22,6 +22,7 @@ class SimpleTransactionResource extends JsonResource
             'transaction_type' => $this->transaction_type,
             'tube_status' => $this->tube_status,
             'nominal' => $this->nominal,
+            'document' => $this->document?->url,
             'item_count' => $this->transactionItems()->count()
         ];
     }

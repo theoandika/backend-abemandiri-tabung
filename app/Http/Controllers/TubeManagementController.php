@@ -194,7 +194,7 @@ class TubeManagementController extends Controller
 
                     if (!$r->hasFile('photo')) {
                         return Response::validation([
-                            'photo' => ['Masukkan foto tabung']
+                            'photo' => ['Masukkan foto tabung yang baru']
                         ]);
                     }
 
