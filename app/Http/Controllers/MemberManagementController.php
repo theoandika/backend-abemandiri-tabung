@@ -119,6 +119,9 @@ class MemberManagementController extends Controller
         $member = Member::where('uid', $uid)->firstOrFail();
         DB::beginTransaction();
         try {
+            if ($member->transactions()->exists() || $member->tubeTransactions()->exists()) {
+                return Response::error(__('message.delete_fail_has_relationship'), 403);
+            }
             $member->delete();
             DB::commit();
             return Response::deleted();

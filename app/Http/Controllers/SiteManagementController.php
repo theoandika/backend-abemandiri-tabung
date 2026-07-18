@@ -117,7 +117,7 @@ class SiteManagementController extends Controller
         $site = Site::where('uid', $uid)->firstOrFail();
         DB::beginTransaction();
         try {
-            if ($site->userSites()->exists()) {
+            if ($site->userSites()->exists() || $site->transactions()->exists() || $site->supplierTransactions()->exists() || $site->tubeTransactions()->exists()) {
                 return Response::error(__('message.delete_fail_has_relationship'), 403);
             }
             $site->delete();

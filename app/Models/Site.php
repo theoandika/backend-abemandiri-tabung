@@ -14,4 +14,19 @@ class Site extends Model
     {
         return $this->hasMany(UserSite::class);
     }
+
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    public function supplierTransactions(): HasMany
+    {
+        return $this->hasMany(SupplierTransaction::class);
+    }
+
+    public function tubeTransactions(): HasMany
+    {
+        return $this->hasMany(TubeTransaction::class);
+    }
 }

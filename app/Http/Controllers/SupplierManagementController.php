@@ -110,6 +110,9 @@ class SupplierManagementController extends Controller
         $supplier = Supplier::where('uid', $uid)->firstOrFail();
         DB::beginTransaction();
         try {
+            if ($supplier->supplierTransactions()->exists() || $supplier->tubeTransactions()->exists()) {
+                return Response::error(__('message.delete_fail_has_relationship'), 403);
+            }
             $supplier->delete();
             DB::commit();
             return Response::deleted();

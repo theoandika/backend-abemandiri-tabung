@@ -204,7 +204,7 @@ class SupplierTransactionManagementController extends Controller
             }
             if (!empty($errorBarcodes)) {
                 $errorCount = count($errorBarcodes);
-                return Response::successData($errorBarcodes, "{$errorCount} tabung tidak dapat diproses");
+                return Response::errorData($errorBarcodes, "{$errorCount} tabung tidak dapat diproses");
             }
             DB::commit();
             return Response::created();

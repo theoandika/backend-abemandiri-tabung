@@ -10,8 +10,8 @@ class TubeContentType extends Model
 {
     use UuidGenerator;
 
-    public function tubeTransactions(): HasMany
+    public function tubeContents(): HasMany
     {
-        return $this->hasMany(TubeTransaction::class);
+        return $this->hasMany(TubeContent::class);
     }
 }

@@ -59,7 +59,7 @@ class Tube extends Model
     {
         return Attribute::make(
             get: function ($value, $attr) {
-                $lastTransaction = TubeTransaction::where('tube_id', $attr['id'])->latest('date')->first();
+                $lastTransaction = TubeTransaction::where('tube_id', $attr['id'])->latest('date')->latest('id')->first();
                 if ($lastTransaction?->transaction_type == 'out' && $lastTransaction?->locationable_type == null) {
                     return 'transit';
                 } else if ($lastTransaction?->transaction_type == 'out' && $lastTransaction?->locationable_type == 'App\Models\Member') {
@@ -176,6 +176,16 @@ class Tube extends Model
 
     public function latestTubeTransaction(): HasOne
     {
-        return $this->hasOne(TubeTransaction::class)->latestOfMany('date');
+        return $this->hasOne(TubeTransaction::class)->latestOfMany('date')->latestOfMany();
+    }
+
+    public function transactionItems(): HasMany
+    {
+        return $this->hasMany(TransactionItem::class);
+    }
+
+    public function supplierTransactionItems(): HasMany
+    {
+        return $this->hasMany(SupplierTransactionItem::class);
     }
 }

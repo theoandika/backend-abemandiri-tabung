@@ -94,6 +94,8 @@ Route::prefix('v1')->group(function () {
             Route::post('/', [TubeManagementController::class, 'create'])->middleware('permission:create-tube')->name('tube.create');
             Route::prefix('{uid}')->group(function () {
                 Route::get('/', [TubeManagementController::class, 'detail'])->middleware('permission:view-tube')->name('tube.detail');
+                Route::get('/activate', [TubeManagementController::class, 'activate'])->middleware('permission:update-tube')->name('tube.activate');
+                Route::get('/deactivate', [TubeManagementController::class, 'deactivate'])->middleware('permission:update-tube')->name('tube.deactivate');
                 Route::post('/', [TubeManagementController::class, 'update'])->middleware('permission:update-tube')->name('tube.update');
                 Route::delete('/', [TubeManagementController::class, 'delete'])->middleware('permission:delete-tube')->name('tube.delete');
             });

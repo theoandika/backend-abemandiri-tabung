@@ -104,6 +104,9 @@ class TubeContentTypeManagementController extends Controller
 
         DB::beginTransaction();
         try {
+            if ($contentType->tubeContents()->exists()) {
+                return Response::error(__('message.delete_fail_has_relationship'), 403);
+            }
             $contentType->delete();
             DB::commit();
             return Response::deleted();

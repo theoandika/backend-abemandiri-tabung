@@ -55,13 +55,14 @@ class TubeBarcodeManagementController extends Controller
         $sites = $user->userSites->pluck('site_id');
         $r->validate([
             'tube_barcodes' => 'bail|required|array',
-            'tube_barcodes.*.tube_uid' => 'bail|required|exists:tubes,uid',
-            'tube_barcodes.*.barcode' => 'bail|required|string|max:50',
+            'tube_barcodes.*.tube_id' => 'bail|required|exists:tubes,uid',
+            'tube_barcodes.*.barcode' => 'bail|required|string|distinct|max:50',
             'tube_barcodes.*.photo' => 'bail|nullable|image|mimes:png,jpg,jpeg|max:10240'
         ], [
             'tube_barcodes.required' => 'Input tidak sesuai',
-            'tube_barcodes.*.tube_uid.required' => 'Input tidak sesuai',
+            'tube_barcodes.*.tube_id.required' => 'Input tidak sesuai',
             'tube_barcodes.*.barcode.required' => 'Masukkan kode barcode',
+            'tube_barcodes.*.barcode.distinct' => 'Kode barcode tidak boleh sama',
             'tube_barcodes.*.barcode.max' => 'Kode barcode maksimal 50 karakter',
             'tube_barcodes.*.photo.mimes' => 'Format foto tidak valid. Gunakan format png atau jpg',
             'tube_barcodes.*.photo.max' => 'Ukuran foto maksimal 10MB'
@@ -71,7 +72,7 @@ class TubeBarcodeManagementController extends Controller
         try {
             $tubeBarcodes = $r->input('tube_barcodes');
             foreach ($tubeBarcodes as $key => $tubeBarcode) {
-                $tube = Tube::where('uid', $tubeBarcode['tube_uid'])
+                $tube = Tube::where('uid', $tubeBarcode['tube_id'])
                 ->when($user->level != 0, function ($q) use ($sites) {
                     $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
                         $q->whereIn('site_id', $sites)
@@ -84,6 +85,12 @@ class TubeBarcodeManagementController extends Controller
                     return Response::validation(["tube_barcodes.{$key}.tube_id" => ['Tabung tidak ditemukan']]);
                 }
                 if ($tube->barcode != $tubeBarcode['barcode']) {
+                    $exists = TubeBarcode::where('barcode', $tubeBarcode['barcode'])->whereNot('tube_id', $tube->id)->latest()->first();
+                    if ($exists) {
+                        return Response::validation([
+                            "tube_barcodes.{$key}.photo" => ['Kode barcode sudah digunakan']
+                        ]);
+                    }
                     $barcode = new TubeBarcode;
                     $barcode->tube()->associate($tube);
                     $barcode->barcode = $tubeBarcode['barcode'];

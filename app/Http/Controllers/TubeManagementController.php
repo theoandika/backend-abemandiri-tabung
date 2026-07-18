@@ -177,7 +177,7 @@ class TubeManagementController extends Controller
             $tube->save();
 
             $tubeContent = TubeContentType::where('uid', $r->input('content'))->first();
-            $currentContent = $tube->latestTubeContent;
+            $currentContent = $tube->latestTubeContent->tubeContentType;
             if ($tubeContent->isNot($currentContent)) {
                 $content = new TubeContent;
                 $content->tube()->associate($tube);
@@ -239,6 +239,56 @@ class TubeManagementController extends Controller
         }
     }
 
+    public function activate(Request $r, string $uid)
+    {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+        $tube = Tube::where('uid', $uid)
+        ->when($user->level != 0, function ($q) use ($sites) {
+            $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
+                $q->whereIn('site_id', $sites)
+                ->whereNot('transaction_type', 'out')
+                ->whereNotNull('locationable_type');
+            });
+        })
+        ->firstOrFail();
+        DB::beginTransaction();
+        try {
+            $tube->active = true;
+            $tube->save();
+            DB::commit();
+            return Response::updated();
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return Response::internalError($th->getMessage());
+        }
+    }
+
+    public function deactivate(Request $r, string $uid)
+    {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+        $tube = Tube::where('uid', $uid)
+        ->when($user->level != 0, function ($q) use ($sites) {
+            $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
+                $q->whereIn('site_id', $sites)
+                ->whereNot('transaction_type', 'out')
+                ->whereNotNull('locationable_type');
+            });
+        })
+        ->firstOrFail();
+        DB::beginTransaction();
+        try {
+            $tube->active = false;
+            $tube->save();
+            DB::commit();
+            return Response::updated();
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return Response::internalError($th->getMessage());
+        }
+    }
+
     public function delete(Request $r, string $uid)
     {
         $user = $r->user();
@@ -254,6 +304,9 @@ class TubeManagementController extends Controller
         ->firstOrFail();
         DB::beginTransaction();
         try {
+            if ($tube->transactionItems()->exists() || $tube->supplierTransactionItems()->exists()) {
+                return Response::error(__('message.delete_fail_has_relationship'), 403);
+            }
             $tube->delete();
             DB::commit();
             return Response::deleted();
