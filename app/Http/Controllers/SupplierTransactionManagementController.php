@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helpers\Response;
 use App\Http\Resources\DetailSupplierTransactionResource;
-use App\Http\Resources\SimpleSupplierTransactionResource;
+// use App\Http\Resources\SimpleSupplierTransactionResource;
 use App\Models\Site;
 use App\Models\Supplier;
 use App\Models\SupplierTransaction;
@@ -46,7 +46,7 @@ class SupplierTransactionManagementController extends Controller
             } else {
                 $transactions = $_transactions->get();
             }
-            return SimpleSupplierTransactionResource::collection($transactions);
+            return DetailSupplierTransactionResource::collection($transactions);
         } catch (\Throwable $th) {
             return Response::internalError($th->getMessage());
         }

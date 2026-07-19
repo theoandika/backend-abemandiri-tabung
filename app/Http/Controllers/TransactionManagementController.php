@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helpers\Response;
 use App\Http\Resources\DetailTransactionResource;
-use App\Http\Resources\SimpleTransactionResource;
+// use App\Http\Resources\SimpleTransactionResource;
 use App\Models\Document;
 use App\Models\Member;
 use App\Models\Site;
@@ -48,7 +48,7 @@ class TransactionManagementController extends Controller
             } else {
                 $transactions = $_transactions->get();
             }
-            return SimpleTransactionResource::collection($transactions);
+            return DetailTransactionResource::collection($transactions);
         } catch (\Throwable $th) {
             return Response::internalError($th->getMessage());
         }

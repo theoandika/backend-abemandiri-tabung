@@ -15,7 +15,8 @@ class DetailTransactionItemResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'uid' => $this->tube->uid,
+            'id' => $this->tube->uid,
+            'number' => $this->tube->number,
             'barcode' => $this->tube->barcode,
             'tube_content_type' => new DetailTubeContentTypeResource($this->tubeTransaction->tubeContentType),
             'tube_owner' => $this->tube->own ? ($this->tube->is_sold ? 'Non DM' : 'DM') : 'Non DM',
