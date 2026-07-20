@@ -45,6 +45,9 @@ class Permission {
         ['name' => 'Lihat Transaksi', 'key' => 'view-supplier-transaction'],
         ['name' => 'Tambah Transaksi', 'key' => 'create-supplier-transaction'],
         ['name' => 'Hapus Transaksi', 'key' => 'delete-supplier-transaction'],
+
+        ['scope' => 'Laporan'],
+        ['name' => 'Aktivitas Tabung', 'key' => 'view-tube-activity']
     ];
 
     public function list(): Collection

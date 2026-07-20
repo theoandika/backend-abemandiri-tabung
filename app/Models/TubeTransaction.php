@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\UuidGenerator;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,6 +28,95 @@ class TubeTransaction extends Model
                         ->orderBy('created_at')
                         ->first();
                     return $lastContentType->tubeContentType;
+                }
+            }
+        );
+    }
+
+    public function tubeOwner(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value, $attr) {
+                $soldTransaction = TubeTransaction::where('tube_id', $attr['id'])->where('transaction_type', 'sell')->first();
+                if ($soldTransaction) {
+                    if (Carbon::parse($attr['date'])->greaterThanOrEqualTo(Carbon::parse($soldTransaction->date))) {
+                        return 'NON DM';
+                    } else {
+                        return 'Tabung DM';
+                    }
+                } else {
+                    return 'Tabung DM';
+                }
+            }
+        );
+    }
+
+    public function position(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value, $attr) {
+                if ($attr['transaction_type'] == 'out' && $attr['locationable_type'] == null) {
+                    return 'transit';
+                } else if ($attr['transaction_type'] == 'out' && $attr['locationable_type'] == 'App\Models\Member') {
+                    return 'member';
+                } else if ($attr['transaction_type'] == 'in' && $attr['locationable_type'] == 'App\Models\Member') {
+                    return 'site';
+                } else if ($attr['transaction_type'] == 'in' && $attr['locationable_type'] == null) {
+                    return 'site';
+                } else if ($attr['transaction_type'] == 'return' && $attr['locationable_type'] == 'App\Models\Member') {
+                    return 'site';
+                } else if ($attr['transaction_type'] == 'refill' && $attr['locationable_type'] == 'App\Models\Supplier') {
+                    return 'supplier';
+                } else if ($attr['transaction_type'] == 'filled' && $attr['locationable_type'] == 'App\Models\Supplier') {
+                    return 'site';
+                } else if ($attr['transaction_type'] == 'sell' && $attr['locationable_type'] == 'App\Models\Member') {
+                    return 'member';
+                } else if ($attr['transaction_type'] == 'fixing' && $attr['locationable_type'] == 'App\Models\Supplier') {
+                    return 'supplier';
+                } else if ($attr['transaction_type'] == 'fixed' && $attr['locationable_type'] == 'App\Models\Supplier') {
+                    return 'site';
+                } else {
+                    return 'unknown';
+                }
+            }
+        );
+    }
+
+    protected function positionName(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value, $attr) {
+                if ($attr['transaction_type'] == 'out' && $attr['locationable_type'] == null) {
+                    return 'Transit';
+                } else if ($attr['transaction_type'] == 'out' && $attr['locationable_type'] == 'App\Models\Member') {
+                    $member = Member::where('id', $attr['locationable_id'])->first();
+                    return $member->code.' - '.$member->name;
+                } else if ($attr['transaction_type'] == 'in' && $attr['locationable_type'] == 'App\Models\Member') {
+                    $site = Site::where('id', $attr['site_id'])->first();
+                    return $site->name;
+                } else if ($attr['transaction_type'] == 'in' && $attr['locationable_type'] == null) {
+                    $site = Site::where('id', $attr['site_id'])->first();
+                    return $site->name;
+                } else if ($attr['transaction_type'] == 'return' && $attr['locationable_type'] == 'App\Models\Member') {
+                    $site = Site::where('id', $attr['site_id'])->first();
+                    return $site->name;
+                } else if ($attr['transaction_type'] == 'refill' && $attr['locationable_type'] == 'App\Models\Supplier') {
+                    $supplier = Supplier::where('id', $attr['site_id'])->first();
+                    return $supplier->code.' - '.$supplier->name;
+                } else if ($attr['transaction_type'] == 'filled' && $attr['locationable_type'] == 'App\Models\Supplier') {
+                    $site = Site::where('id', $attr['site_id'])->first();
+                    return $site->name;
+                } else if ($attr['transaction_type'] == 'sell' && $attr['locationable_type'] == 'App\Models\Member') {
+                    $member = Member::where('id', $attr['locationable_id'])->first();
+                    return $member->code.' - '.$member->name;
+                } else if ($attr['transaction_type'] == 'fixing' && $attr['locationable_type'] == 'App\Models\Supplier') {
+                    $supplier = Supplier::where('id', $attr['site_id'])->first();
+                    return $supplier->code.' - '.$supplier->name;
+                } else if ($attr['transaction_type'] == 'fixed' && $attr['locationable_type'] == 'App\Models\Supplier') {
+                    $site = Site::where('id', $attr['site_id'])->first();
+                    return $site->name;
+                } else {
+                    return 'Tidak diketahui';
                 }
             }
         );

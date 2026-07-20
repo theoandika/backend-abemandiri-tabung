@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\MemberManagementController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleManagementController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SiteManagementController;
@@ -108,10 +109,8 @@ Route::prefix('v1')->group(function () {
             Route::post('index', [TransactionManagementController::class, 'index'])->middleware('permission:view-transaction')->name('transaction.index');
             Route::post('/', [TransactionManagementController::class, 'create'])->middleware('permission:create-transaction')->name('transaction.create');
             Route::prefix('{uid}')->group(function () {
-                // Route::post('create-items', [TransactionManagementController::class, 'createItems'])->middleware('permission:create-items-transaction')->name('transaction.create-items');
                 Route::get('/', [TransactionManagementController::class, 'detail'])->middleware('permission:view-transaction')->name('transaction.detail');
                 Route::delete('/', [TransactionManagementController::class, 'delete'])->middleware('permission:delete-transaction')->name('transaction.delete');
-                // Route::delete('delete-item', [TransactionManagementController::class, 'deleteItem'])->middleware('permission:delete-transaction-item')->name('transaction.delete-item');
             });
         });
         Route::prefix('supplier-transactions')->group(function () {
@@ -121,6 +120,9 @@ Route::prefix('v1')->group(function () {
                 Route::get('/', [SupplierTransactionManagementController::class, 'detail'])->middleware('permission:view-supplier-transaction')->name('supplier-transaction.detail');
                 Route::delete('/', [SupplierTransactionManagementController::class, 'delete'])->middleware('permission:delete-supplier-transaction')->name('supplier-transaction.delete');
             });
+        });
+        Route::prefix('reports')->group(function () {
+            Route::get('tube-activities', [ReportController::class, 'tubeActivity'])->middleware('permission:view-tube-activity')->name('report.tube-activity');
         });
     });
 });
