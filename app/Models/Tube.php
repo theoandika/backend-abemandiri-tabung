@@ -176,7 +176,7 @@ class Tube extends Model
 
     public function latestTubeTransaction(): HasOne
     {
-        return $this->hasOne(TubeTransaction::class)->latestOfMany('date')->latestOfMany();
+        return $this->hasOne(TubeTransaction::class)->ofMany(['date' => 'max', 'id' => 'max']);
     }
 
     public function transactionItems(): HasMany
@@ -187,5 +187,10 @@ class Tube extends Model
     public function supplierTransactionItems(): HasMany
     {
         return $this->hasMany(SupplierTransactionItem::class);
+    }
+
+    public function stockOpnameItems(): HasMany
+    {
+        return $this->hasMany(StockOpnameItem::class);
     }
 }

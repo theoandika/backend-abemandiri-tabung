@@ -7,6 +7,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleManagementController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SiteManagementController;
+use App\Http\Controllers\StockOpnameManagementController;
 use App\Http\Controllers\SupplierManagementController;
 use App\Http\Controllers\SupplierTransactionManagementController;
 use App\Http\Controllers\TransactionManagementController;
@@ -123,6 +124,9 @@ Route::prefix('v1')->group(function () {
         });
         Route::prefix('reports')->group(function () {
             Route::get('tube-activities', [ReportController::class, 'tubeActivity'])->middleware('permission:view-tube-activity')->name('report.tube-activity');
+        });
+        Route::prefix('stock-opnames')->group(function () {
+            Route::post('tube-list', [StockOpnameManagementController::class, 'tubeList'])->middleware('permission:create-stock-opname')->name('stock-opname.tube-list');
         });
     });
 });

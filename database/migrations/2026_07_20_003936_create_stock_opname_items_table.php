@@ -13,7 +13,10 @@ return new class extends Migration
     {
         Schema::create('stock_opname_items', function (Blueprint $table) {
             $table->id();
-            $table->timestamps();
+            $table->foreignId('stock_opname_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('tube_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('tube_transaction_id')->constrained()->cascadeOnDelete();
+            $table->boolean('match');
         });
     }
 

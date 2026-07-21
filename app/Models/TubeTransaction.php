@@ -135,6 +135,13 @@ class TubeTransaction extends Model
         );
     }
 
+    public function isAdjustByStockOpaname(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value, $attr) => StockOpnameItem::where('tube_transaction_id', $attr['id'])->where('match', false)->exists()
+        );
+    }
+
     public function tube(): BelongsTo
     {
         return $this->belongsTo(Tube::class);

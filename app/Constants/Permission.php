@@ -47,7 +47,10 @@ class Permission {
         ['name' => 'Hapus Transaksi', 'key' => 'delete-supplier-transaction'],
 
         ['scope' => 'Laporan'],
-        ['name' => 'Aktivitas Tabung', 'key' => 'view-tube-activity']
+        ['name' => 'Aktivitas Tabung', 'key' => 'view-tube-activity'],
+
+        ['scope' => 'Stock Opname'],
+        ['name' => 'Submit Stock Opname', 'key' => 'create-stock-opname'],
     ];
 
     public function list(): Collection

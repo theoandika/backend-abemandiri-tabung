@@ -13,6 +13,8 @@ return new class extends Migration
     {
         Schema::create('stock_opnames', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uid')->index();
+            $table->foreignId('site_id')->constrained()->cascadeOnDelete();
             $table->timestamps();
         });
     }
