@@ -35,8 +35,13 @@ class TubeManagementController extends Controller
             ->when($user->level != 0, function ($q) use ($sites) {
                 $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
                     $q->whereIn('site_id', $sites)
-                    ->whereNot('transaction_type', 'out')
-                    ->whereNotNull('locationable_type');
+                    ->where(function ($q) {
+                        $q->where(function ($q) {
+                            $q->where('transaction_type', 'out')
+                            ->whereNotNull('locationable_type');
+                        })
+                        ->orWhereIn('transaction_type', ['in', 'sell', 'return', 'refill', 'fixing']);
+                    });
                 });
             })
             ->orderBy('number');
@@ -59,8 +64,13 @@ class TubeManagementController extends Controller
         ->when($user->level != 0, function ($q) use ($sites) {
             $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
                 $q->whereIn('site_id', $sites)
-                ->whereNot('transaction_type', 'out')
-                ->whereNotNull('locationable_type');
+                ->where(function ($q) {
+                    $q->where(function ($q) {
+                        $q->where('transaction_type', 'out')
+                        ->whereNotNull('locationable_type');
+                    })
+                    ->orWhereIn('transaction_type', ['in', 'sell', 'return', 'refill', 'fixing']);
+                });
             });
         })
         ->firstOrFail();
@@ -141,8 +151,13 @@ class TubeManagementController extends Controller
         ->when($user->level != 0, function ($q) use ($sites) {
             $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
                 $q->whereIn('site_id', $sites)
-                ->whereNot('transaction_type', 'out')
-                ->whereNotNull('locationable_type');
+                ->where(function ($q) {
+                    $q->where(function ($q) {
+                        $q->where('transaction_type', 'out')
+                        ->whereNotNull('locationable_type');
+                    })
+                    ->orWhereIn('transaction_type', ['in', 'sell', 'return', 'refill', 'fixing']);
+                });
             });
         })
         ->firstOrFail();
@@ -247,8 +262,13 @@ class TubeManagementController extends Controller
         ->when($user->level != 0, function ($q) use ($sites) {
             $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
                 $q->whereIn('site_id', $sites)
-                ->whereNot('transaction_type', 'out')
-                ->whereNotNull('locationable_type');
+                ->where(function ($q) {
+                    $q->where(function ($q) {
+                        $q->where('transaction_type', 'out')
+                        ->whereNotNull('locationable_type');
+                    })
+                    ->orWhereIn('transaction_type', ['in', 'sell', 'return', 'refill', 'fixing']);
+                });
             });
         })
         ->firstOrFail();
@@ -272,8 +292,13 @@ class TubeManagementController extends Controller
         ->when($user->level != 0, function ($q) use ($sites) {
             $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
                 $q->whereIn('site_id', $sites)
-                ->whereNot('transaction_type', 'out')
-                ->whereNotNull('locationable_type');
+                ->where(function ($q) {
+                    $q->where(function ($q) {
+                        $q->where('transaction_type', 'out')
+                        ->whereNotNull('locationable_type');
+                    })
+                    ->orWhereIn('transaction_type', ['in', 'sell', 'return', 'refill', 'fixing']);
+                });
             });
         })
         ->firstOrFail();
@@ -297,8 +322,13 @@ class TubeManagementController extends Controller
         ->when($user->level != 0, function ($q) use ($sites) {
             $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
                 $q->whereIn('site_id', $sites)
-                ->whereNot('transaction_type', 'out')
-                ->whereNotNull('locationable_type');
+                ->where(function ($q) {
+                    $q->where(function ($q) {
+                        $q->where('transaction_type', 'out')
+                        ->whereNotNull('locationable_type');
+                    })
+                    ->orWhereIn('transaction_type', ['in', 'sell', 'return', 'refill', 'fixing']);
+                });
             });
         })
         ->firstOrFail();

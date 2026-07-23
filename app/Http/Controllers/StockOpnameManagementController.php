@@ -28,9 +28,15 @@ class StockOpnameManagementController extends Controller
         try {
             $tubes = Tube::whereHas('latestTubeTransaction', function ($q) use ($site) {
                 $q->where('site_id', $site->id)
-                ->whereNot('transaction_type', 'out')
-                ->whereNotNull('locationable_type');
+                ->where(function ($q) {
+                    $q->where(function ($q) {
+                        $q->where('transaction_type', 'out')
+                        ->whereNotNull('locationable_type');
+                    })
+                    ->orWhereIn('transaction_type', ['in', 'sell', 'return', 'refill', 'fixing']);
+                });
             })
+            ->where('active', true)
             ->orderBy('number')
             ->get();
             return StockOpnameTubeListResource::collection($tubes);
