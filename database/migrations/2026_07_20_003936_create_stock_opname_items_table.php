@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('tube_id')->constrained()->cascadeOnDelete();
             $table->foreignId('tube_transaction_id')->constrained()->cascadeOnDelete();
             $table->boolean('match');
+            $table->boolean('adjust');
         });
     }
 

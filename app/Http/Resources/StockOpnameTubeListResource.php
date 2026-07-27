@@ -15,6 +15,7 @@ class StockOpnameTubeListResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
+            'id' => $this->uid,
             'number' => $this->number,
             'barcode' => $this->barcode,
             'site' => new SimpleSiteResource($this->site),

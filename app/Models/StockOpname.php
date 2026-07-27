@@ -12,6 +12,15 @@ class StockOpname extends Model
 {
     use UuidGenerator;
 
+    protected static function booted(): void
+    {
+        static::deleting(function ($stockOpname) {
+            foreach ($stockOpname->stockOpnameItems as $stockOpnameItem) {
+                $stockOpnameItem->delete();
+            }
+        });
+    }
+
     protected function notMatchCount(): Attribute
     {
         return Attribute::make(

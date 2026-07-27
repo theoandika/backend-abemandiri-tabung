@@ -15,6 +15,15 @@ class StockOpnameItem extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::deleting(function ($item) {
+            if ($item->adjust) {
+                $item->tubeTransaction->delete();
+            }
+        });
+    }
+
     public function stockOpname(): BelongsTo
     {
         return $this->belongsTo(StockOpname::class);

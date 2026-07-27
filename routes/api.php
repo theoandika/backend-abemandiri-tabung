@@ -115,7 +115,7 @@ Route::prefix('v1')->group(function () {
             });
         });
         Route::prefix('supplier-transactions')->group(function () {
-            Route::post('index', [SupplierTransactionManagementController::class, 'index'])->middleware('permission:view-supplier-transaction')->name('supplier-transaction.view');
+            Route::post('index', [SupplierTransactionManagementController::class, 'index'])->middleware('permission:view-supplier-transaction')->name('supplier-transaction.index');
             Route::post('/', [SupplierTransactionManagementController::class, 'create'])->middleware('permission:create-supplier-transaction')->name('supplier-transaction.create');
             Route::prefix('{uid}')->group(function () {
                 Route::get('/', [SupplierTransactionManagementController::class, 'detail'])->middleware('permission:view-supplier-transaction')->name('supplier-transaction.detail');
@@ -126,7 +126,12 @@ Route::prefix('v1')->group(function () {
             Route::get('tube-activities', [ReportController::class, 'tubeActivity'])->middleware('permission:view-tube-activity')->name('report.tube-activity');
         });
         Route::prefix('stock-opnames')->group(function () {
+            Route::get('index', [StockOpnameManagementController::class, 'index'])->middleware('permission:view-stock-opname')->name('stock-opname.index');
             Route::post('tube-list', [StockOpnameManagementController::class, 'tubeList'])->middleware('permission:create-stock-opname')->name('stock-opname.tube-list');
+            Route::post('create', [StockOpnameManagementController::class, 'create'])->middleware('permission:create-stock-opname')->name('stock-opname.create');
+            Route::prefix('{uid}')->group(function () {
+                Route::delete('/', [StockOpnameManagementController::class, 'delete'])->middleware('permission:delete-stock-opname')->name('stock-opname.delete');
+            });
         });
     });
 });

@@ -50,7 +50,9 @@ class Permission {
         ['name' => 'Aktivitas Tabung', 'key' => 'view-tube-activity'],
 
         ['scope' => 'Stock Opname'],
+        ['name' => 'Lihat Stock Opname', 'key' => 'view-stock-opname'],
         ['name' => 'Submit Stock Opname', 'key' => 'create-stock-opname'],
+        ['name' => 'Hapus Stock Opname', 'key' => 'delete-stock-opname'],
     ];
 
     public function list(): Collection
