@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\Response;
+use App\Http\Resources\DetailStockOpnameResource;
 use App\Http\Resources\SimpleStockOpnameResource;
 use App\Http\Resources\StockOpnameTubeListResource;
 use App\Models\Member;
@@ -32,6 +33,17 @@ class StockOpnameManagementController extends Controller
         } catch (\Throwable $th) {
             return Response::internalError($th->getMessage());
         }
+    }
+
+    public function detail(Request $r, string $uid)
+    {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+        $stockOpname = StockOpname::where('uid', $uid)
+        ->when($user->level != 0, function ($q) use ($sites) {
+            $q->whereIn('site_id', $sites);
+        })->first();
+        return new DetailStockOpnameResource($stockOpname);
     }
 
     public function tubeList(Request $r)
@@ -86,6 +98,7 @@ class StockOpnameManagementController extends Controller
         ], [
             'site.required' => 'Tentukan cabang',
             'tubes.*.is_match.required' => 'Tentukan hasil pemeriksaan',
+            'tubes.*.adjust.required' => 'Tentukan status penyesuaian',
             'tubes.*.tube_status.required_if' => 'Tentukan status tabung',
             'tubes.*.position.required_if' => 'Tentukan posisi tabung',
         ]);
@@ -131,6 +144,9 @@ class StockOpnameManagementController extends Controller
                     $adjust->tube()->associate($tube);
 
                     if ($input['position'] == 'site') {
+                        if (!isset($input['tube_status'])) {
+                            return Response::validation(["tubes.{$key}.tube_status" => ["Tentukan kondisi tabung"]]);
+                        }
                         if ($input['position_id'] == $site->uid) {
                             $adjust->site()->associate($site);
                         } else {
@@ -143,6 +159,9 @@ class StockOpnameManagementController extends Controller
                         $adjust->transaction_type = "in";
                         $adjust->tube_status = $input['tube_status'];
                     } else if ($input['position'] == 'member') {
+                        if (!isset($input['tube_status'])) {
+                            return Response::validation(["tubes.{$key}.tube_status" => ["Tentukan kondisi tabung"]]);
+                        }
                         $locationable = Member::where('uid', $input['position_id'])->first();
                         if (!$locationable) {
                             return Response::validation(["tubes.{$key}.position_id" => [__('validation.exists')]]);
@@ -153,6 +172,9 @@ class StockOpnameManagementController extends Controller
                         $adjust->tube_status = $input['tube_status'];
                     } else if ($input['position'] == 'supplier') {
                         $locationable = Supplier::where('uid', $input['position_id'])->first();
+                        if (!isset($input['supplier_transaction_type'])) {
+                            return Response::validation(["tubes.{$key}.supplier_transaction_type" => ["Tentukan jenis transaksi"]]);
+                        }
                         if (!$locationable) {
                             return Response::validation(["tubes.{$key}.position_id" => [__('validation.exists')]]);
                         }
@@ -163,6 +185,9 @@ class StockOpnameManagementController extends Controller
                         } else if ($input['supplier_transaction_type'] == 'fixing') {
                             $tubeStatus = "broken";
                         } else if ($input['supplier_transaction_type'] == 'fixed') {
+                            if (!isset($input['tube_status'])) {
+                                return Response::validation(["tubes.{$key}.tube_status" => ["Tentukan kondisi tabung"]]);
+                            }
                             $tubeStatus = $input['tube_status'];
                         }
                         $adjust->site()->associate($site);
@@ -172,6 +197,9 @@ class StockOpnameManagementController extends Controller
                     } else if ($input['position'] == 'transit') {
                         $adjust->site()->associate($site);
                         $adjust->transaction_type = "out";
+                        if (!isset($input['tube_status'])) {
+                            return Response::validation(["tubes.{$key}.tube_status" => ["Tentukan kondisi tabung"]]);
+                        }
                         $adjust->tube_status = $input['tube_status'];
                     }
 
@@ -181,16 +209,16 @@ class StockOpnameManagementController extends Controller
                     $stockOpnameItem->stockOpname()->associate($stockOpname);
                     $stockOpnameItem->tube()->associate($tube);
                     $stockOpnameItem->tubeTransaction()->associate($adjust);
-                    $stockOpnameItem->match = false;
-                    $stockOpnameItem->adjust = true;
+                    $stockOpnameItem->match = $input['is_match'];
+                    $stockOpnameItem->adjust = $input['adjust'];
                     $stockOpnameItem->save();
                 } else {
                     $stockOpnameItem = new StockOpnameItem;
                     $stockOpnameItem->stockOpname()->associate($stockOpname);
                     $stockOpnameItem->tube()->associate($tube);
                     $stockOpnameItem->tubeTransaction()->associate($tube->latestTubeTransaction);
-                    $stockOpnameItem->match = true;
-                    $stockOpnameItem->adjust = false;
+                    $stockOpnameItem->match = $input['is_match'];
+                    $stockOpnameItem->adjust = $input['adjust'];
                     $stockOpnameItem->save();
                 }
             }

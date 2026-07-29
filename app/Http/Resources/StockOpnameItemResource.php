@@ -15,9 +15,11 @@ class StockOpnameItemResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'tube' => new DetailTubeResource($this->tube),
+            'id' => $this->tube->uid,
+            'tube' => new SimpleTubeResource($this->tube),
             'tube_transaction' => new DetailTubeTransactionResource($this->tubeTransaction),
-            'match' => $this->match
+            'match' => $this->match,
+            'adjust' => $this->adjust
         ];
     }
 }

@@ -12,6 +12,7 @@ class StockOpnameItem extends Model
     protected function casts(): array{
         return [
             'match' => 'boolean',
+            'adjust' => 'boolean'
         ];
     }
 
