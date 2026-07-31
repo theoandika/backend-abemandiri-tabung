@@ -17,9 +17,9 @@ class DetailSupplierTransactionItemResource extends JsonResource
         return [
             'id' => $this->tube->uid,
             'number' => $this->tube->number,
-            'barcode' => $this->tube->barcode,
+            'barcode' => $this->tubeTransaction->barcode,
             'tube_content_type' => new DetailTubeContentTypeResource($this->tubeTransaction->tubeContentType),
-            'tube_owner' => $this->tube->own ? ($this->tube->is_sold ? 'Non DM' : 'DM') : 'Non DM',
+            'tube_owner' => $this->tubeTransaction->tube_owner
         ];
     }
 }

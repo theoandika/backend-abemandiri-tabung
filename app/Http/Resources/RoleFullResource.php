@@ -18,7 +18,7 @@ class RoleFullResource extends JsonResource
             'id' => $this->uid,
             'name' => $this->name,
             'users_count' => $this->users()->count(),
-            'permissions' => PermissionNameResource::collection($this->rolePermissions)
+            'permissions' => PermissionResource::collection($this->rolePermissions)
         ];
     }
 }

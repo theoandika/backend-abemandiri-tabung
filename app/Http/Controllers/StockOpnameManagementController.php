@@ -28,6 +28,7 @@ class StockOpnameManagementController extends Controller
             $stockOpnames = StockOpname::when($user->level != 0, function ($q) use ($sites) {
                 $q->whereIn('site_id', $sites);
             })
+            ->orderByDesc('created_at')
             ->get();
             return SimpleStockOpnameResource::collection($stockOpnames);
         } catch (\Throwable $th) {

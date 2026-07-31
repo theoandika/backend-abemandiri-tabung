@@ -18,12 +18,13 @@ class DetailTubeTransactionResource extends JsonResource
             'id' => $this->uid,
             'date' => $this->date,
             'number' => $this->tube->number,
-            'barcode' => $this->tube->barcode,
+            'barcode' => $this->barcode,
             'content' => new DetailTubeContentTypeResource($this->tube_content_type),
             'transaction_type' => $this->transaction_type,
             'tube_status' => $this->tube_status,
             'position' => $this->position,
-            'position_name' => $this->position_name
+            'position_name' => $this->position_name,
+            'adjust_by_stock_opname' => $this->is_adjust_by_stock_opname
         ];
     }
 }

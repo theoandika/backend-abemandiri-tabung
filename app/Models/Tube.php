@@ -144,7 +144,7 @@ class Tube extends Model
         return Attribute::make(
             get: function ($value, $attr) {
                 $lastTransaction = TubeTransaction::where('tube_id', $attr['id'])->latest('date')->first();
-                return $lastTransaction?->tube_status;
+                return $lastTransaction?->tube_status ?? "unknown";
             }
         );
     }

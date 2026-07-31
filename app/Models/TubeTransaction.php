@@ -13,18 +13,36 @@ class TubeTransaction extends Model
 {
     use UuidGenerator;
 
+    protected function barcode(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value, $attr) {
+                $barcode = TubeBarcode::where('tube_id', $attr['tube_id'])
+                    ->where('created_at', '<=', $attr['date'])
+                    ->orderByDesc('created_at')
+                    ->first();
+                if ($barcode) {
+                    return $barcode->barcode;
+                } else {
+                    $barcode = TubeBarcode::where('tube_id', $attr['tube_id'])->latest()->first()?->barcode ?? null;
+                    return $barcode;
+                }
+            }
+        );
+    }
+
     public function tubeContentType(): Attribute
     {
         return Attribute::make(
             get: function ($value, $attr) {
-                $lastContentType = TubeContent::where('tube_id', $this->tube_id)
+                $lastContentType = TubeContent::where('tube_id', $attr['tube_id'])
                     ->where('created_at', '<=', $attr['date'])
                     ->orderByDesc('created_at')
                     ->first();
                 if ($lastContentType) {
                     return $lastContentType->tubeContentType;
                 } else {
-                    $lastContentType = TubeContent::where('tube_id', $this->tube_id)
+                    $lastContentType = TubeContent::where('tube_id', $attr['tube_id'])
                         ->orderBy('created_at')
                         ->first();
                     return $lastContentType->tubeContentType;
@@ -37,15 +55,16 @@ class TubeTransaction extends Model
     {
         return Attribute::make(
             get: function ($value, $attr) {
-                $soldTransaction = TubeTransaction::where('tube_id', $attr['id'])->where('transaction_type', 'sell')->first();
+                $own = Tube::where('id', $attr['tube_id'])->first()->own;
+                $soldTransaction = TubeTransaction::where('tube_id', $attr['tube_id'])->where('transaction_type', 'sell')->first();
                 if ($soldTransaction) {
                     if (Carbon::parse($attr['date'])->greaterThanOrEqualTo(Carbon::parse($soldTransaction->date))) {
-                        return 'NON DM';
+                        return 'Non DM';
                     } else {
-                        return 'Tabung DM';
+                        return $own ? 'Tabung DM' : 'Non DM'; 
                     }
                 } else {
-                    return 'Tabung DM';
+                    return $own ? 'Tabung DM' : 'Non DM'; 
                 }
             }
         );
@@ -135,7 +154,7 @@ class TubeTransaction extends Model
         );
     }
 
-    public function isAdjustByStockOpaname(): Attribute
+    public function isAdjustByStockOpname(): Attribute
     {
         return Attribute::make(
             get: fn ($value, $attr) => StockOpnameItem::where('tube_transaction_id', $attr['id'])->where('adjust', true)->exists()

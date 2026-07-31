@@ -124,6 +124,7 @@ Route::prefix('v1')->group(function () {
         });
         Route::prefix('reports')->group(function () {
             Route::get('tube-activities', [ReportController::class, 'tubeActivity'])->middleware('permission:view-tube-activity')->name('report.tube-activity');
+            Route::get('tube-stock-opnames', [ReportController::class, 'tubeStockOpname'])->middleware('permission:view-tube-stock-opname')->name('report.tube-stock-opname');
         });
         Route::prefix('stock-opnames')->group(function () {
             Route::get('index', [StockOpnameManagementController::class, 'index'])->middleware('permission:view-stock-opname')->name('stock-opname.index');
