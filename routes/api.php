@@ -25,6 +25,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('account')->group(function () {
             Route::get('detail', [AccountController::class, 'detail'])->name('account.detail');
+            Route::post('update-password', [AccountController::class, 'updatePassword'])->name('account.update-password');
         });
         Route::prefix('permissions')->middleware(['administrator'])->group(function () {
             Route::get('/', [RolePermissionController::class, 'all'])->name('permission.all');
