@@ -54,6 +54,12 @@ class Permission {
         ['scope' => 'Laporan'],
         ['name' => 'Aktivitas Tabung', 'key' => 'view-tube-activity'],
         ['name' => 'Stock Opname Tabung', 'key' => 'view-tube-stock-opname'],
+
+        ['scope' => 'Jaminan'],
+        ['name' => 'Lihat Jaminan', 'key' => 'view-collateral'],
+        ['name' => 'Tambah Jaminan', 'key' => 'create-collateral'],
+        ['name' => 'Ubah Jaminan', 'key' => 'update-collateral'],
+        ['name' => 'Hapus Jaminan', 'key' => 'delete-collateral'],
     ];
 
     public function list(): Collection

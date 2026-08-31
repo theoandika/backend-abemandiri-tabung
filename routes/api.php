@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CollateralManagementController;
 use App\Http\Controllers\MemberManagementController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleManagementController;
@@ -135,6 +136,9 @@ Route::prefix('v1')->group(function () {
                 Route::get('/', [StockOpnameManagementController::class, 'detail'])->middleware('permission:view-stock-opname')->name('stock-opname.detail');
                 Route::delete('/', [StockOpnameManagementController::class, 'delete'])->middleware('permission:delete-stock-opname')->name('stock-opname.delete');
             });
+        });
+        Route::prefix('collaterals')->group(function () {
+            Route::post('/', [CollateralManagementController::class, 'create'])->middleware('permission:create-collateral')->name('collateral.create');
         });
     });
 });

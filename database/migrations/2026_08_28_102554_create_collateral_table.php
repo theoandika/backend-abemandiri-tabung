@@ -16,6 +16,7 @@ return new class extends Migration
             $table->uuid('uid')->index();
             $table->foreignId('site_id')->constrained()->cascadeOnDelete();
             $table->foreignId('member_id')->constrained()->cascadeOnDelete();
+            $table->date('date');
             $table->string('type');
             $table->string('pic')->nullable();
             $table->string('document_number')->nullable();
