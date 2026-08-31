@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\UuidGenerator;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -30,5 +31,12 @@ class Collateral extends Model
     public function document(): MorphOne
     {
         return $this->morphOne(Document::class, 'documentable');
+    }
+
+    protected function totalNominal(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value, $attr) => (int)CollateralItem::where('collateral_id', $attr['id'])->selectRaw('SUM(tube_quantity * nominal) as total')->value('total')
+        );
     }
 }

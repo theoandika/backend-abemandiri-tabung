@@ -25,6 +25,7 @@ return new class extends Migration
             $table->string('signatory_status')->nullable();
             $table->string('company_name')->nullable();
             $table->string('contact_person')->nullable();
+            $table->string('payment_method')->nullable();
             $table->date('payment_date')->nullable();
             $table->string('return_payment_method')->nullable();
             $table->date('return_payment_date')->nullable();

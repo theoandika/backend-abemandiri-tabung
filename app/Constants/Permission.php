@@ -46,6 +46,14 @@ class Permission {
         ['name' => 'Tambah Transaksi', 'key' => 'create-supplier-transaction'],
         ['name' => 'Hapus Transaksi', 'key' => 'delete-supplier-transaction'],
 
+        ['scope' => 'Jaminan'],
+        ['name' => 'Lihat Jaminan', 'key' => 'view-collateral'],
+        ['name' => 'Tambah Jaminan', 'key' => 'create-collateral'],
+        ['name' => 'Tambah Item Jaminan', 'key' => 'create-collateral-item'],
+        ['name' => 'Ubah Jaminan', 'key' => 'update-collateral'],
+        ['name' => 'Hapus Jaminan', 'key' => 'delete-collateral'],
+        ['name' => 'Hapus Item Jaminan', 'key' => 'delete-collateral-item'],
+
         ['scope' => 'Stock Opname'],
         ['name' => 'Lihat Stock Opname', 'key' => 'view-stock-opname'],
         ['name' => 'Submit Stock Opname', 'key' => 'create-stock-opname'],
@@ -54,12 +62,6 @@ class Permission {
         ['scope' => 'Laporan'],
         ['name' => 'Aktivitas Tabung', 'key' => 'view-tube-activity'],
         ['name' => 'Stock Opname Tabung', 'key' => 'view-tube-stock-opname'],
-
-        ['scope' => 'Jaminan'],
-        ['name' => 'Lihat Jaminan', 'key' => 'view-collateral'],
-        ['name' => 'Tambah Jaminan', 'key' => 'create-collateral'],
-        ['name' => 'Ubah Jaminan', 'key' => 'update-collateral'],
-        ['name' => 'Hapus Jaminan', 'key' => 'delete-collateral'],
     ];
 
     public function list(): Collection

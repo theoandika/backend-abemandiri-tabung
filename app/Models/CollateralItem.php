@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use App\Traits\UuidGenerator;
+use Illuminate\Database\Eloquent\Attributes\WithoutTimestamps;
 use Illuminate\Database\Eloquent\Model;
 
+#[WithoutTimestamps]
 class CollateralItem extends Model
 {
     use UuidGenerator;

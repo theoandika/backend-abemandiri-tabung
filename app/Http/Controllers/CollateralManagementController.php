@@ -3,15 +3,40 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\Response;
+use App\Http\Resources\DetailCollateralResource;
 use App\Models\Collateral;
+use App\Models\CollateralItem;
+use App\Models\Document;
 use App\Models\Member;
 use App\Models\Site;
 use App\Models\TubeContentType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class CollateralManagementController extends Controller
 {
+    public function index(Request $r)
+    {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+        try {
+            $collaterals = Collateral::when($user->level != 0, function ($q) use ($sites) {
+                $q->whereIn('site_id', $sites);
+            })
+            ->orderByDesc('date')
+            ->orderByDesc('created_at');
+            if ($r->filled('paginate')) {
+                $transactions = $collaterals->paginate($r->integer('paginate'));
+            } else {
+                $transactions = $collaterals->get();
+            }
+            return DetailCollateralResource::collection($transactions);
+        } catch (\Throwable $th) {
+            return Response::internalError($th->getMessage());
+        }
+    }
+
     public function create(Request $r)
     {
         $user = $r->user();
@@ -19,8 +44,8 @@ class CollateralManagementController extends Controller
         $r->validate([
             'site' => 'bail|required|exists:sites,uid',
             'member' => 'bail|required|exists:members,uid',
-            'type' => 'bail|required|string|in:collateral,return',
             'date' => 'bail|required|date_format:Y-m-d',
+            'type' => 'bail|required|string|in:collateral,return',
             'pic' => 'bail|required|string|max:100',
             'document_number' => 'bail|nullable|string|max:50',
             'member_name' => 'bail|required|string|max:100',
@@ -33,9 +58,9 @@ class CollateralManagementController extends Controller
             'return_payment_method' => 'bail|nullable|string|max:50',
             'return_payment_date' => 'bail|nullable|date_format:Y-m-d',
             'document' => 'bail|nullable|file|mimes:pdf|max:2048',
-            'items_returned' => 'bail|required_if:type,return|array',
-            'items_returned.*' => 'bail|required|string',
-            'items' => 'bail|required_if:type,collateral|array',
+            'collateral_audit' => 'bail|nullable|string|max:100',
+            'return_audit' => 'bail|nullable|string|max:100',
+            'items' => 'bail|required|array',
             'items.*.tube_content_type' => 'bail|required|exists:tube_content_types,uid',
             'items.*.klep_condition' => 'bail|nullable|string',
             'items.*.tube_cap' => 'bail|nullable|string',
@@ -63,9 +88,9 @@ class CollateralManagementController extends Controller
             'return_payment_date.date_format' => 'Format tanggal pembayaran pengembalian tidak valid',
             'document.mimes' => 'Dokumen harus berupa file PDF',
             'document.max' => 'Ukuran dokumen maksimal 2MB',
-            'items_returned.required_if' => 'Masukkan jaminan yang dikembalikan',
-            'items_returned.*.required' => 'Tentukan jaminan yang dikembalikan',
-            'items.required_if' => 'Masukkan jaminan',
+            'collateral_audit.max' => 'Audit jaminan maksimal 100 karakter',
+            'return_audit.max' => 'Audit pengembalian maksimal 100 karakter',
+            'items.required' => 'Masukkan jaminan',
             'items.*.tube_content_type.required' => 'Tentukan jenis isi tabung',
             'items.*.tube_quantity.required' => 'Masukkan jumlah tabung',
             'items.*.tube_quantity.integer' => 'Jumlah tabung harus berupa angka',
@@ -98,26 +123,82 @@ class CollateralManagementController extends Controller
             if ($r->input('type') == 'collateral') {
                 $collateral->payment_method = $r->input('payment_method');
                 $collateral->payment_date = $r->input('payment_date');
+                $collateral->collateral_audit = $r->input('collateral_audit');
             }
             if ($r->input('type') == 'return') {
                 $collateral->return_payment_method = $r->input('return_payment_method');
                 $collateral->return_payment_date = $r->input('return_payment_date');
+                $collateral->return_audit = $r->input('return_audit');
             }
             $collateral->save();
 
-            if ($r->input('type') == 'return') {
-                $collateral->collateralItems()->whereIn('uid', $r->input('items_returned'))->update(['returned' => true]);
+            if ($r->hasFile('document')) {
+                $file = $r->file('document');
+                $path = Storage::disk('documents')->put('collaterals', $file);
+                $document = new Document;
+                $document->documentable()->associate($collateral);
+                $document->type = 'collateral';
+                $document->path = $path;
+                $document->save();
             }
+
             foreach ($r->input('items') as $item) {
                 $tubeContentType = TubeContentType::where('uid', $item['tube_content_type'])->first();
-                $collateral->collateralItems()->create([
-                    'tube_content_type_id' => $tubeContentType->id,
-                    'klep_condition' => $item['klep_condition'],
-                    'tube_cap' => $item['tube_cap'],
-                    'tube_quantity' => $item['tube_quantity'],
-                    'nominal' => $item['nominal'],
-                ]);
+                $collateralItem = new CollateralItem;
+                $collateralItem->collateral()->associate($collateral);
+                $collateralItem->tubeContentType()->associate($tubeContentType);
+                $collateralItem->klep_condition = $item['klep_condition'];
+                $collateralItem->tube_cap = $item['tube_cap'];
+                $collateralItem->tube_quantity = $item['tube_quantity'];
+                $collateralItem->nominal = $item['nominal'];
+                $collateralItem->save();
             }
+
+            DB::commit();
+            return Response::created();
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return Response::internalError($th->getMessage());
+        }
+    }
+
+    public function addItem(Request $r, string $uid)
+    {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+
+        $collateral = Collateral::where('uid', $uid)
+        ->when($user->level != 0, function ($q) use ($sites) {
+            $q->whereIn('site_id', $sites);
+        })->firstOrFail();
+
+        $r->validate([
+            'tube_content_type' => 'bail|required|exists:tube_content_types,uid',
+            'klep_condition' => 'bail|nullable|string',
+            'tube_cap' => 'bail|nullable|string',
+            'tube_quantity' => 'bail|required|integer|min:1',
+            'nominal' => 'bail|required|integer|min:0',
+        ],[
+            'tube_content_type.required' => 'Tentukan jenis isi tabung',
+            'tube_quantity.required' => 'Masukkan jumlah tabung',
+            'tube_quantity.integer' => 'Jumlah tabung harus berupa angka',
+            'tube_quantity.min' => 'Jumlah tabung minimal 1',
+            'nominal.required' => 'Masukkan nominal jaminan',
+            'nominal.integer' => 'Nominal jaminan harus berupa angka',
+            'nominal.min' => 'Nominal jaminan minimal 0',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $tubeContentType = TubeContentType::where('uid', $r->input('tube_content_type'))->first();
+            $collateralItem = new CollateralItem;
+            $collateralItem->collateral()->associate($collateral);
+            $collateralItem->tubeContentType()->associate($tubeContentType);
+            $collateralItem->klep_condition = $r->input('klep_condition');
+            $collateralItem->tube_cap = $r->input('tube_cap');
+            $collateralItem->tube_quantity = $r->input('tube_quantity');
+            $collateralItem->nominal = $r->input('nominal');
+            $collateralItem->save();
             DB::commit();
             return Response::created();
         } catch (\Throwable $th) {

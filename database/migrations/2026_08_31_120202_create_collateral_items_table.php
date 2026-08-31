@@ -15,8 +15,7 @@ return new class extends Migration
             $table->id();
             $table->uuid('uid')->index();
             $table->foreignId('collateral_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('return_collateral_id')->nullable()->constrained('collaterals')->nullOnDelete();
-            $table->foreignId('tube_content_type')->constrained()->cascadeOnDelete();
+            $table->foreignId('tube_content_type_id')->constrained()->cascadeOnDelete();
             $table->string('klep_condition')->nullable();
             $table->string('tube_cap')->nullable();
             $table->unsignedInteger('tube_quantity');

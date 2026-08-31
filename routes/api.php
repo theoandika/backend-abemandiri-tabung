@@ -138,7 +138,11 @@ Route::prefix('v1')->group(function () {
             });
         });
         Route::prefix('collaterals')->group(function () {
+            Route::get('/', [CollateralManagementController::class, 'index'])->middleware('permission:view-collateral')->name('collateral.index');
             Route::post('/', [CollateralManagementController::class, 'create'])->middleware('permission:create-collateral')->name('collateral.create');
+            Route::prefix('{uid}')->group(function () {
+                Route::post('add-item', [CollateralManagementController::class, 'addItem'])->middleware('permission:create-collateral-item')->name('collateral.create-item');
+            });
         });
     });
 });
