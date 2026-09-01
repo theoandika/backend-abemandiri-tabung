@@ -37,6 +37,17 @@ class CollateralManagementController extends Controller
         }
     }
 
+    public function detail(Request $r, string $uid)
+    {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+        $collateral = Collateral::where('uid', $uid)
+        ->when($user->level != 0, function ($q) use ($sites) {
+            $q->whereIn('site_id', $sites);
+        })->firstOrFail();
+        return new DetailCollateralResource($collateral);
+    }
+
     public function create(Request $r)
     {
         $user = $r->user();
@@ -205,5 +216,188 @@ class CollateralManagementController extends Controller
             DB::rollBack();
             return Response::internalError($th->getMessage());
         }
+    }
+
+    public function deleteItem(Request $r, string $uid)
+    {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+
+        $item = CollateralItem::where('uid', $uid)
+        ->when($user->level != 0, function ($q) use ($sites) {
+            $q->whereRelation('collateral', function ($q) use ($sites) {
+                $q->whereIn('site_id', $sites);
+            });
+        })
+        ->firstOrFail();
+
+        DB::beginTransaction();
+        try {
+            $item->delete();
+            DB::commit();
+            return Response::deleted();
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return Response::internalError($th->getMessage());
+        }
+    }
+
+    public function update(Request $r, string $uid)
+    {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+
+        $collateral = Collateral::where('uid', $uid)
+        ->when($user->level != 0, function ($q) use ($sites) {
+            $q->whereIn('site_id', $sites);
+        })->firstOrFail();
+
+        $r->validate([
+            'date' => 'bail|required|date_format:Y-m-d',
+            'type' => 'bail|required|string|in:collateral,return',
+            'pic' => 'bail|required|string|max:100',
+            'document_number' => 'bail|nullable|string|max:50',
+            'member_name' => 'bail|required|string|max:100',
+            'member_address' => 'bail|nullable|string|max:200',
+            'signatory_status' => 'bail|nullable|string|max:50',
+            'company_name' => 'bail|nullable|string|max:100',
+            'contact_person' => 'bail|nullable|string|max:100',
+            'payment_method' => 'bail|nullable|string|max:50',
+            'payment_date' => 'bail|nullable|date_format:Y-m-d',
+            'return_payment_method' => 'bail|nullable|string|max:50',
+            'return_payment_date' => 'bail|nullable|date_format:Y-m-d',
+            'document' => 'bail|nullable|file|mimes:pdf|max:2048',
+            'collateral_audit' => 'bail|nullable|string|max:100',
+            'return_audit' => 'bail|nullable|string|max:100',
+            'items' => 'bail|required|array',
+            'items.*.tube_content_type' => 'bail|required|exists:tube_content_types,uid',
+            'items.*.klep_condition' => 'bail|nullable|string',
+            'items.*.tube_cap' => 'bail|nullable|string',
+            'items.*.tube_quantity' => 'bail|required|integer|min:1',
+            'items.*.nominal' => 'bail|required|integer|min:0',
+        ],[
+            'date.required' => 'Tentukan tanggal',
+            'date.date_format' => 'Format tanggal tidak valid',
+            'type.required' => 'Tentukan jenis dokumen',
+            'type.in' => 'Jenis dokumen tidak valid',
+            'pic.required' => 'Masukkan PIC',
+            'pic.max' => 'PIC maksimal 100 karakter',
+            'document_number.max' => 'Nomor surat maksimal 50 karakter',
+            'member_name.required' => 'Masukkan nama member',
+            'member_name.max' => 'Nama member maksimal 100 karakter',
+            'member_address.max' => 'Alamat member maksimal 200 karakter',
+            'signatory_status.max' => 'Status penandatangan maksimal 50 karakter',
+            'company_name.max' => 'Nama usaha maksimal 100 karakter',
+            'contact_person.max' => 'Kontak maksimal 100 karakter',
+            'payment_method.max' => 'Metode pembayaran maksimal 50 karakter',
+            'payment_date.date_format' => 'Format tanggal pembayaran tidak valid',
+            'return_payment_method.max' => 'Metode pembayaran pengembalian maksimal 50 karakter',
+            'return_payment_date.date_format' => 'Format tanggal pembayaran pengembalian tidak valid',
+            'document.mimes' => 'Dokumen harus berupa file PDF',
+            'document.max' => 'Ukuran dokumen maksimal 2MB',
+            'collateral_audit.max' => 'Audit jaminan maksimal 100 karakter',
+            'return_audit.max' => 'Audit pengembalian maksimal 100 karakter',
+            'items.required' => 'Masukkan jaminan',
+            'items.*.tube_content_type.required' => 'Tentukan jenis isi tabung',
+            'items.*.tube_quantity.required' => 'Masukkan jumlah tabung',
+            'items.*.tube_quantity.integer' => 'Jumlah tabung harus berupa angka',
+            'items.*.tube_quantity.min' => 'Jumlah tabung minimal 1',
+            'items.*.nominal.required' => 'Masukkan nominal jaminan',
+            'items.*.nominal.integer' => 'Nominal jaminan harus berupa angka',
+            'items.*.nominal.min' => 'Nominal jaminan minimal 0',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $collateral->date = $r->input('date');
+            $collateral->type = $r->input('type');
+            $collateral->pic = $r->input('pic');
+            $collateral->document_number = $r->input('document_number');
+            $collateral->member_name = $r->input('member_name');
+            $collateral->member_address = $r->input('member_address');
+            $collateral->signatory_status = $r->input('signatory_status');
+            $collateral->company_name = $r->input('company_name');
+            $collateral->contact_person = $r->input('contact_person');
+            if ($r->input('type') == 'collateral') {
+                $collateral->payment_method = $r->input('payment_method');
+                $collateral->payment_date = $r->input('payment_date');
+                $collateral->collateral_audit = $r->input('collateral_audit');
+            }
+            if ($r->input('type') == 'return') {
+                $collateral->return_payment_method = $r->input('return_payment_method');
+                $collateral->return_payment_date = $r->input('return_payment_date');
+                $collateral->return_audit = $r->input('return_audit');
+            }
+            $collateral->save();
+
+            if ($r->hasFile('document')) {
+                $collateral->document?->delete();
+                $file = $r->file('document');
+                $path = Storage::disk('documents')->put('collaterals', $file);
+                $document = new Document;
+                $document->documentable()->associate($collateral);
+                $document->type = 'collateral';
+                $document->path = $path;
+                $document->save();
+            }
+
+            $keepItems = [];
+            $existItems = $collateral->collateralItems()->get()->toArray();
+            foreach ($r->input('items') as $key => $item) {
+                $tubeContentType = TubeContentType::where('uid', $item['tube_content_type'])->first();
+                if ($existItems && isset($existItems[$key])) {
+                    $collateralItem = CollateralItem::find($existItems[$key]['id']);
+                } else {
+                    $collateralItem = new CollateralItem;
+                }
+                $collateralItem->collateral()->associate($collateral);
+                $collateralItem->tubeContentType()->associate($tubeContentType);
+                $collateralItem->klep_condition = $item['klep_condition'];
+                $collateralItem->tube_cap = $item['tube_cap'];
+                $collateralItem->tube_quantity = $item['tube_quantity'];
+                $collateralItem->nominal = $item['nominal'];
+                $collateralItem->save();
+                $keepItems[] = $collateralItem->id;
+            }
+            CollateralItem::where('collateral_id', $collateral->id)->whereNotIn('id', $keepItems)->delete();
+            DB::commit();
+            return Response::updated();
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return Response::internalError($th->getMessage());
+        }
+    }
+
+    public function delete(Request $r, string $uid)
+    {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+
+        $collateral = Collateral::where('uid', $uid)
+        ->when($user->level != 0, function ($q) use ($sites) {
+            $q->whereIn('site_id', $sites);
+        })->firstOrFail();
+
+        DB::beginTransaction();
+        try {
+            $collateral->delete();
+            DB::commit();
+            return Response::deleted();
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return Response::internalError($th->getMessage());
+        }
+    }
+
+    public function viewCollateralDocument(string $uid)
+    {
+        $collateral = Collateral::where('uid', $uid)->where('type', 'collateral')->firstOrFail();
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('collateral', ['data' => $collateral])->setPaper('A4', 'landscape')->setWarnings(false)->stream();
+    }
+
+    public function viewReturnCollateralDocument(string $uid)
+    {
+        $collateral = Collateral::where('uid', $uid)->where('type', 'return')->firstOrFail();
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('return-collateral', ['data' => $collateral])->setPaper('A4', 'landscape')->setWarnings(false)->stream();
     }
 }

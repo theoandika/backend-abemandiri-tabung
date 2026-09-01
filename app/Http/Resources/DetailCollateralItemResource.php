@@ -20,7 +20,8 @@ class DetailCollateralItemResource extends JsonResource
             'klep_condition' => $this->klep_condition,
             'tube_cap' => $this->tube_cap,
             'tube_quantity' => $this->tube_quantity,
-            'nominal' => $this->nominal
+            'nominal' => $this->nominal,
+            'total_amount' => $this->totalAmount,
         ];
     }
 }

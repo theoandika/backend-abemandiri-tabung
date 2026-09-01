@@ -141,7 +141,11 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [CollateralManagementController::class, 'index'])->middleware('permission:view-collateral')->name('collateral.index');
             Route::post('/', [CollateralManagementController::class, 'create'])->middleware('permission:create-collateral')->name('collateral.create');
             Route::prefix('{uid}')->group(function () {
+                Route::get('/', [CollateralManagementController::class, 'detail'])->middleware('permission:view-collateral')->name('collateral.detail');
                 Route::post('add-item', [CollateralManagementController::class, 'addItem'])->middleware('permission:create-collateral-item')->name('collateral.create-item');
+                Route::delete('delete-item', [CollateralManagementController::class, 'deleteItem'])->middleware('permission:delete-collateral-item')->name('collateral.delete-item');
+                Route::post('/', [CollateralManagementController::class, 'update'])->middleware('permission:update-collateral')->name('collateral.update');
+                Route::delete('/', [CollateralManagementController::class, 'delete'])->middleware('permission:delete-collateral')->name('collateral.delete');
             });
         });
     });

@@ -35,7 +35,8 @@ class DetailCollateralResource extends JsonResource
             'return_audit' => $this->return_audit,
             'document' => $this->document?->url,
             'collateral_items' => DetailCollateralItemResource::collection($this->collateralItems),
-            'total_nominal' => $this->total_nominal
+            'total_nominal' => $this->total_nominal,
+            'generated_document' => $this->generatedDocument,
         ];
     }
 }
