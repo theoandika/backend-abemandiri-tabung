@@ -131,10 +131,15 @@ Route::prefix('v1')->group(function () {
         Route::prefix('stock-opnames')->group(function () {
             Route::get('index', [StockOpnameManagementController::class, 'index'])->middleware('permission:view-stock-opname')->name('stock-opname.index');
             Route::post('tube-list', [StockOpnameManagementController::class, 'tubeList'])->middleware('permission:create-stock-opname')->name('stock-opname.tube-list');
-            Route::post('/', [StockOpnameManagementController::class, 'create'])->middleware('permission:create-stock-opname')->name('stock-opname.create');
-            Route::prefix('{uid}')->group(function () {
+            // Route::post('/', [StockOpnameManagementController::class, 'create'])->middleware('permission:create-stock-opname')->name('stock-opname.create');
+            Route::post('/', [StockOpnameManagementController::class, 'createV2'])->middleware('permission:create-stock-opname')->name('stock-opname.create');
+            Route::prefix('{stockOpnameUid}')->group(function () {
+                Route::post('add-item', [StockOpnameManagementController::class, 'addItemV2'])->middleware('permission:create-stock-opname')->name('stock-opname.create-item');
                 Route::get('/', [StockOpnameManagementController::class, 'detail'])->middleware('permission:view-stock-opname')->name('stock-opname.detail');
                 Route::delete('/', [StockOpnameManagementController::class, 'delete'])->middleware('permission:delete-stock-opname')->name('stock-opname.delete');
+                Route::prefix('{uid}')->group(function () {
+                    Route::delete('/', [StockOpnameManagementController::class, 'deleteItemV2'])->middleware('permission:create-stock-opname')->name('stock-opname.delete-item');
+                });
             });
         });
         Route::prefix('collaterals')->group(function () {

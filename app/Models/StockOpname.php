@@ -12,6 +12,12 @@ class StockOpname extends Model
 {
     use UuidGenerator;
 
+    protected function casts(): array{
+        return [
+            'date' => 'datetime',
+        ];
+    }
+
     protected static function booted(): void
     {
         static::deleting(function ($stockOpname) {
@@ -31,6 +37,11 @@ class StockOpname extends Model
     public function site(): BelongsTo
     {
         return $this->belongsTo(Site::class);
+    }
+
+    public function tubeContentType(): BelongsTo
+    {
+        return $this->belongsTo(TubeContentType::class);
     }
 
     public function stockOpnameItems(): HasMany

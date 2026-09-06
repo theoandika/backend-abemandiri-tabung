@@ -2,13 +2,17 @@
 
 namespace App\Models;
 
+use App\Traits\UuidGenerator;
 use Illuminate\Database\Eloquent\Attributes\WithoutTimestamps;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 #[WithoutTimestamps]
 class StockOpnameItem extends Model
 {
+    use UuidGenerator;
+
     protected function casts(): array{
         return [
             'match' => 'boolean',
@@ -21,6 +25,9 @@ class StockOpnameItem extends Model
         static::deleting(function ($item) {
             if ($item->adjust) {
                 $item->tubeTransaction->delete();
+            }
+            if ($item->photo) {
+                $item->photo->delete();
             }
         });
     }
@@ -38,5 +45,10 @@ class StockOpnameItem extends Model
     public function tubeTransaction(): BelongsTo
     {
         return $this->belongsTo(TubeTransaction::class);
+    }
+
+    public function photo(): MorphOne
+    {
+        return $this->morphOne(Image::class, 'imageable');
     }
 }
