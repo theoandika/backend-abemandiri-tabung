@@ -120,7 +120,7 @@ class TubeTransaction extends Model
                     $site = Site::where('id', $attr['site_id'])->first();
                     return $site->name;
                 } else if ($attr['transaction_type'] == 'refill' && $attr['locationable_type'] == 'App\Models\Supplier') {
-                    $supplier = Supplier::where('id', $attr['site_id'])->first();
+                    $supplier = Supplier::where('id', $attr['locationable_id'])->first();
                     return $supplier->code.' - '.$supplier->name;
                 } else if ($attr['transaction_type'] == 'filled' && $attr['locationable_type'] == 'App\Models\Supplier') {
                     $site = Site::where('id', $attr['site_id'])->first();
@@ -129,7 +129,7 @@ class TubeTransaction extends Model
                     $member = Member::where('id', $attr['locationable_id'])->first();
                     return $member->code.' - '.$member->name;
                 } else if ($attr['transaction_type'] == 'fixing' && $attr['locationable_type'] == 'App\Models\Supplier') {
-                    $supplier = Supplier::where('id', $attr['site_id'])->first();
+                    $supplier = Supplier::where('id', $attr['locationable_id'])->first();
                     return $supplier->code.' - '.$supplier->name;
                 } else if ($attr['transaction_type'] == 'fixed' && $attr['locationable_type'] == 'App\Models\Supplier') {
                     $site = Site::where('id', $attr['site_id'])->first();
