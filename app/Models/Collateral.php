@@ -49,6 +49,13 @@ class Collateral extends Model
         );
     }
 
+    protected function totalQuantity(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value, $attr) => (int)CollateralItem::where('collateral_id', $attr['id'])->selectRaw('SUM(tube_quantity) as total')->value('total')
+        );
+    }
+
     protected function generatedDocument(): Attribute
     {
         return Attribute::make(
