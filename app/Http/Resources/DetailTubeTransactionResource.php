@@ -19,6 +19,7 @@ class DetailTubeTransactionResource extends JsonResource
             'date' => $this->date,
             'number' => $this->tube->number,
             'barcode' => $this->barcode,
+            'site' => new SimpleSiteResource($this->site),
             'content' => new DetailTubeContentTypeResource($this->tube_content_type),
             'transaction_type' => $this->transaction_type,
             'tube_status' => $this->tube_status,
