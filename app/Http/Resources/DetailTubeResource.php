@@ -24,7 +24,8 @@ class DetailTubeResource extends JsonResource
             'own' => $this->own,
             'active' => $this->active,
             'status' => $this->status,
-            'position' => $this->position,
+            'position' => $this->latestTubeTransaction->position,
+            'position_name' => $this->latestTubeTransaction->position_name,
             'second_owner' => new SimpleMemberResource($this->second_owner),
             'photo' => $this->latestTubeBarcode?->photo?->url ?? null,
         ];
