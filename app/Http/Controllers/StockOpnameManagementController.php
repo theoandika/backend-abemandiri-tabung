@@ -481,6 +481,9 @@ class StockOpnameManagementController extends Controller
 
         DB::beginTransaction();
         try {
+            if ($stockOpnameItem->tubeTransaction->is_past) {
+                return Response::error('Data stock opname tidak dapat dihapus');
+            }
             $stockOpnameItem->delete();
             DB::commit();
             return Response::deleted();
@@ -502,6 +505,12 @@ class StockOpnameManagementController extends Controller
 
         DB::beginTransaction();
         try {
+            foreach ($stockOpname->stockOpnameItems as $stockOpnameItem) {
+                if ($stockOpnameItem->tubeTransaction->is_past) {
+                    return Response::error('Data stock opname tidak dapat dihapus');
+                }
+                $stockOpnameItem->delete();
+            }
             $stockOpname->delete();
             DB::commit();
             return Response::deleted();
