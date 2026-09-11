@@ -6,6 +6,7 @@ use App\Helpers\Response;
 use App\Http\Resources\DetailTubeTransactionResource;
 use App\Http\Resources\StockOpnameReportResource;
 use App\Models\StockOpnameItem;
+use App\Models\Tube;
 use App\Models\TubeTransaction;
 use Illuminate\Http\Request;
 
@@ -47,6 +48,27 @@ class ReportController extends Controller
             ->orderByDesc('id')
             ->get();
             return StockOpnameReportResource::collection($tubes);
+        } catch (\Throwable $th) {
+            return Response::internalError($th->getMessage());
+        }
+    }
+
+    public function tubeLastPosition(Request $r)
+    {
+        $r->validate([
+            'barcode' => 'bail|required|string|max:50'
+        ],[
+            'barcode.required' => 'Masukkan barcode tabung',
+            'barcode.max' => 'Barcode maksimal 50 karakter'
+        ]);
+
+        try {
+            $tube = Tube::whereHas('latestTubeBarcode', function ($q) use ($r) {
+                $q->where('barcode', $r->input('barcode'));
+            })->first();
+            if (!$tube) {
+                return Response::error("Tabung tidak ditemukan");
+            }
         } catch (\Throwable $th) {
             return Response::internalError($th->getMessage());
         }
