@@ -62,6 +62,7 @@ class Permission {
         ['scope' => 'Laporan'],
         ['name' => 'Aktivitas Tabung', 'key' => 'view-tube-activity'],
         ['name' => 'Stock Opname Tabung', 'key' => 'view-tube-stock-opname'],
+        ['name' => 'Posisi Tabung Terakhir', 'key' => 'view-last-tube-position'],
     ];
 
     public function list(): Collection

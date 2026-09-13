@@ -56,6 +56,33 @@ class TubeManagementController extends Controller
         }
     }
 
+    public function barcodeList(Request $r)
+    {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+
+        try {
+            $tubes = Tube::withAggregate('latestTubeBarcode', 'barcode')
+            ->when($user->level != 0, function ($q) use ($sites) {
+                $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
+                    $q->whereIn('site_id', $sites)
+                    ->where(function ($q) {
+                        $q->where(function ($q) {
+                            $q->where('transaction_type', 'out')
+                            ->whereNotNull('locationable_type');
+                        })
+                        ->orWhereIn('transaction_type', ['in', 'sell', 'return', 'refill', 'fixing']);
+                    });
+                });
+            })
+            ->orderBy('latest_tube_barcode_barcode')
+            ->get()->pluck('latest_tube_barcode_barcode');
+            return Response::successData($tubes);
+        } catch (\Throwable $th) {
+            return Response::internalError($th->getMessage());
+        }
+    }
+
     public function detail(Request $r, string $uid)
     {
         $user = $r->user();

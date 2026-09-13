@@ -95,6 +95,7 @@ Route::prefix('v1')->group(function () {
         });
         Route::prefix('tubes')->group(function () {
             Route::post('index', [TubeManagementController::class, 'index'])->middleware('permission:view-tube')->name('tube.index');
+            Route::get('barcode-list', [TubeManagementController::class, 'barcodeList'])->name('tube.barcode-list');
             Route::post('/', [TubeManagementController::class, 'create'])->middleware('permission:create-tube')->name('tube.create');
             Route::prefix('{uid}')->group(function () {
                 Route::get('/', [TubeManagementController::class, 'detail'])->middleware('permission:view-tube')->name('tube.detail');
@@ -127,6 +128,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('reports')->group(function () {
             Route::get('tube-activities', [ReportController::class, 'tubeActivity'])->middleware('permission:view-tube-activity')->name('report.tube-activity');
             Route::get('tube-stock-opnames', [ReportController::class, 'tubeStockOpname'])->middleware('permission:view-tube-stock-opname')->name('report.tube-stock-opname');
+            Route::post('last-tube-position', [ReportController::class, 'tubeLastPosition'])->middleware('permission:view-last-tube-position')->name('report.last-tube-position');
         });
         Route::prefix('stock-opnames')->group(function () {
             Route::get('index', [StockOpnameManagementController::class, 'index'])->middleware('permission:view-stock-opname')->name('stock-opname.index');

@@ -22,12 +22,11 @@ class LastTubePositionResource extends JsonResource
             'tube_content' => new DetailTubeContentTypeResource($this->latestTubeContent->tubeContentType),
             'type' => $this->type,
             'own' => $this->own,
-            'active' => $this->active,
-            'status' => $this->status,
             'position' => $this->latestTubeTransaction?->position,
             'position_name' => $this->latestTubeTransaction?->position_name,
             'second_owner' => new SimpleMemberResource($this->second_owner),
-            'photo' => $this->latestTubeBarcode?->photo?->url ?? null,
+            'last_transaction_date' => $this->latestTubeTransaction?->date,
+            'status_naming' => $this->statusNaming
         ];
     }
 }

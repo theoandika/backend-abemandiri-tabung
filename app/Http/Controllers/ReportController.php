@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helpers\Response;
 use App\Http\Resources\DetailTubeTransactionResource;
+use App\Http\Resources\LastTubePositionResource;
 use App\Http\Resources\StockOpnameReportResource;
 use App\Models\StockOpnameItem;
 use App\Models\Tube;
@@ -55,6 +56,8 @@ class ReportController extends Controller
 
     public function tubeLastPosition(Request $r)
     {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
         $r->validate([
             'barcode' => 'bail|required|string|max:50'
         ],[
@@ -63,12 +66,28 @@ class ReportController extends Controller
         ]);
 
         try {
-            $tube = Tube::whereHas('latestTubeBarcode', function ($q) use ($r) {
+            $tube = Tube::when($user->level != 0, function ($q) use ($sites) {
+                $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
+                    $q->whereIn('site_id', $sites)
+                    ->where(function ($q) {
+                        $q->where(function ($q) {
+                            $q->where('transaction_type', 'out')
+                            ->whereNotNull('locationable_type');
+                        })
+                        ->orWhereIn('transaction_type', ['in', 'sell', 'return', 'refill', 'fixing']);
+                    });
+                });
+            })
+            ->whereHas('latestTubeBarcode', function ($q) use ($r) {
                 $q->where('barcode', $r->input('barcode'));
             })->first();
             if (!$tube) {
-                return Response::error("Tabung tidak ditemukan");
+                return Response::error("Tabung tidak ditemukan", 404);
             }
+            if (!$tube->latestTubeTransaction) {
+                return Response::error("Tabung tidak ditemukan", 404);
+            }
+            return new LastTubePositionResource($tube);
         } catch (\Throwable $th) {
             return Response::internalError($th->getMessage());
         }
