@@ -166,7 +166,7 @@ class Tube extends Model
                     } else if ($lastTransaction?->transaction_type == 'return' && $lastTransaction?->locationable_type == 'App\Models\Member') {
                         return 'DI CABANG';
                     } else if ($lastTransaction?->transaction_type == 'refill' && $lastTransaction?->locationable_type == 'App\Models\Supplier') {
-                        return 'PENGISIAN KE SUPPLIER';
+                        return 'ISI KE SUPPLIER';
                     } else if ($lastTransaction?->transaction_type == 'filled' && $lastTransaction?->locationable_type == 'App\Models\Supplier') {
                         return 'DI CABANG';
                     } else if ($lastTransaction?->transaction_type == 'sell' && $lastTransaction?->locationable_type == 'App\Models\Member') {
@@ -229,22 +229,9 @@ class Tube extends Model
                                 return 'DI CABANG';
                         }
                     } else if ($lastTransaction?->transaction_type == 'refill' && $lastTransaction?->locationable_type == 'App\Models\Supplier') {
-                        return 'PENGISIAN KE SUPPLIER';
+                        return 'ISI KE SUPPLIER';
                     } else if ($lastTransaction?->transaction_type == 'filled' && $lastTransaction?->locationable_type == 'App\Models\Supplier') {
-                        switch ($lastTransaction?->tube_status) {
-                            case 'empty':
-                                return 'STOK TOKO KOSONG';
-                            case 'filled':
-                                return 'STOK TOKO ISI';
-                            case 'broken':
-                                return 'STOK TOKO BERMASALAH';
-                            case 'expired':
-                                return 'STOK TOKO AFKIR';
-                            case 'display':
-                                return 'STOK TOKO PAJANGAN';
-                            default:
-                                return 'DI CABANG';
-                        }
+                        return 'STOK TOKO ISI';
                     } else if ($lastTransaction?->transaction_type == 'sell' && $lastTransaction?->locationable_type == 'App\Models\Member') {
                         return 'DI MEMBER';
                     } else if ($lastTransaction?->transaction_type == 'fixing' && $lastTransaction?->locationable_type == 'App\Models\Supplier') {
@@ -267,6 +254,94 @@ class Tube extends Model
                     } else {
                         return 'TIDAK DIKETAHUI';
                     }
+                }
+            }
+        );
+    }
+
+    protected function statusForActiveOwnCount(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value, $attr) {
+                if ($this->own) {
+                    $lastTransaction = TubeTransaction::where('tube_id', $attr['id'])->latest('date')->latest('id')->first();
+                    if ($lastTransaction?->transaction_type == 'out' && $lastTransaction?->locationable_type == null) {
+                        return null;
+                    } else if ($lastTransaction?->transaction_type == 'out' && $lastTransaction?->locationable_type == 'App\Models\Member') {
+                        return 'borrow';
+                    } else if ($lastTransaction?->transaction_type == 'in' && $lastTransaction?->locationable_type == 'App\Models\Member') {
+                        switch ($lastTransaction?->tube_status) {
+                            case 'empty':
+                                return 'empty';
+                            case 'filled':
+                                return 'filled';
+                            case 'broken':
+                                return 'broken';
+                            case 'expired':
+                                return 'expired';
+                            case 'display':
+                                return 'display';
+                            default:
+                                return null;
+                        }
+                    } else if ($lastTransaction?->transaction_type == 'in' && $lastTransaction?->locationable_type == null) {
+                        switch ($lastTransaction?->tube_status) {
+                            case 'empty':
+                                return 'empty';
+                            case 'filled':
+                                return 'filled';
+                            case 'broken':
+                                return 'broken';
+                            case 'expired':
+                                return 'expired';
+                            case 'display':
+                                return 'display';
+                            default:
+                                return null;
+                        }
+                    } else if ($lastTransaction?->transaction_type == 'return' && $lastTransaction?->locationable_type == 'App\Models\Member') {
+                        switch ($lastTransaction?->tube_status) {
+                            case 'empty':
+                                return 'empty';
+                            case 'filled':
+                                return 'filled';
+                            case 'broken':
+                                return 'broken';
+                            case 'expired':
+                                return 'expired';
+                            case 'display':
+                                return 'display';
+                            default:
+                                return null;
+                        }
+                    } else if ($lastTransaction?->transaction_type == 'refill' && $lastTransaction?->locationable_type == 'App\Models\Supplier') {
+                        return 'refill';
+                    } else if ($lastTransaction?->transaction_type == 'filled' && $lastTransaction?->locationable_type == 'App\Models\Supplier') {
+                        return 'filled';
+                    } else if ($lastTransaction?->transaction_type == 'sell' && $lastTransaction?->locationable_type == 'App\Models\Member') {
+                        return null;
+                    } else if ($lastTransaction?->transaction_type == 'fixing' && $lastTransaction?->locationable_type == 'App\Models\Supplier') {
+                        return 'fixing';
+                    } else if ($lastTransaction?->transaction_type == 'fixed' && $lastTransaction?->locationable_type == 'App\Models\Supplier') {
+                        switch ($lastTransaction?->tube_status) {
+                            case 'empty':
+                                return 'empty';
+                            case 'filled':
+                                return 'filled';
+                            case 'broken':
+                                return 'broken';
+                            case 'expired':
+                                return 'expired';
+                            case 'display':
+                                return 'display';
+                            default:
+                                return null;
+                        }
+                    } else {
+                        return null;
+                    }
+                } else {
+                    return null;
                 }
             }
         );

@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CollateralManagementController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MemberManagementController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleManagementController;
@@ -154,6 +155,9 @@ Route::prefix('v1')->group(function () {
                 Route::post('/', [CollateralManagementController::class, 'update'])->middleware('permission:update-collateral')->name('collateral.update');
                 Route::delete('/', [CollateralManagementController::class, 'delete'])->middleware('permission:delete-collateral')->name('collateral.delete');
             });
+        });
+        Route::prefix('dashboard')->group(function () {
+            Route::get('active-tube-own-count', [DashboardController::class, 'activeTubeOwnCount'])->name('dashboard.tube-own-count');
         });
     });
 });
