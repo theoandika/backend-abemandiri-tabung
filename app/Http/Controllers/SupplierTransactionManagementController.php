@@ -71,7 +71,7 @@ class SupplierTransactionManagementController extends Controller
         $r->validate([
             'site' => 'bail|required|exists:sites,uid',
             'supplier' => 'bail|required|exists:suppliers,uid',
-            'date' => 'bail|required|date_format:Y-m-d H:i|before:tomorrow',
+            'date' => 'bail|required|date_format:Y-m-d H:i',
             'transaction_type' => 'bail|required|in:refill,filled,fixing,fixed',
             'tube_status' => 'bail|nullable|in:filled,empty,broken',
             'note' => 'bail|nullable|string|max:500',
