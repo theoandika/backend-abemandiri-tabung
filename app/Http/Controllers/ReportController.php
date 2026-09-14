@@ -85,7 +85,7 @@ class ReportController extends Controller
                 return Response::error("Tabung tidak ditemukan", 404);
             }
             if (!$tube->latestTubeTransaction) {
-                return Response::error("Tabung tidak ditemukan", 404);
+                return Response::error("Posisi tabung tidak diketahui", 404);
             }
             return new LastTubePositionResource($tube);
         } catch (\Throwable $th) {
