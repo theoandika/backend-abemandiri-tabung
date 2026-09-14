@@ -75,6 +75,7 @@ class TubeManagementController extends Controller
                     });
                 });
             })
+            ->whereHas('latestTubeBarcode')
             ->orderBy('latest_tube_barcode_barcode')
             ->get()->pluck('latest_tube_barcode_barcode');
             return Response::successData($tubes);
