@@ -97,6 +97,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('tubes')->group(function () {
             Route::post('index', [TubeManagementController::class, 'index'])->middleware('permission:view-tube')->name('tube.index');
             Route::get('barcode-list', [TubeManagementController::class, 'barcodeList'])->name('tube.barcode-list');
+            Route::get('number-list', [TubeManagementController::class, 'numberList'])->name('tube.number-list');
             Route::post('/', [TubeManagementController::class, 'create'])->middleware('permission:create-tube')->name('tube.create');
             Route::prefix('{uid}')->group(function () {
                 Route::get('/', [TubeManagementController::class, 'detail'])->middleware('permission:view-tube')->name('tube.detail');

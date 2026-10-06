@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helpers\ImageCompress;
 use App\Helpers\Response;
 use App\Http\Resources\DetailTubeResource;
+use App\Http\Resources\TubeNumberResource;
 use App\Models\Image;
 use App\Models\Tube;
 use App\Models\TubeBarcode;
@@ -79,6 +80,34 @@ class TubeManagementController extends Controller
             ->orderBy('latest_tube_barcode_barcode')
             ->get()->pluck('latest_tube_barcode_barcode');
             return Response::successData($tubes);
+        } catch (\Throwable $th) {
+            return Response::internalError($th->getMessage());
+        }
+    }
+
+    public function numberList(Request $r)
+    {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+
+        try {
+            $tubes = Tube::withAggregate('latestTubeBarcode', 'barcode')
+            ->when($user->level != 0, function ($q) use ($sites) {
+                $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
+                    $q->whereIn('site_id', $sites)
+                    ->where(function ($q) {
+                        $q->where(function ($q) {
+                            $q->where('transaction_type', 'out')
+                            ->whereNotNull('locationable_type');
+                        })
+                        ->orWhereIn('transaction_type', ['in', 'sell', 'return', 'refill', 'fixing']);
+                    });
+                });
+            })
+            ->whereHas('latestTubeBarcode')
+            ->orderBy('number')
+            ->get();
+            return TubeNumberResource::collection($tubes);
         } catch (\Throwable $th) {
             return Response::internalError($th->getMessage());
         }
