@@ -85,7 +85,7 @@ Route::prefix('v1')->group(function () {
             });
         });
         Route::prefix('members')->group(function () {
-            Route::get('/', [MemberManagementController::class, 'all'])->name('content-type.all');
+            Route::get('/', [MemberManagementController::class, 'all'])->name('member.all');
             Route::post('index', [MemberManagementController::class, 'index'])->middleware('permission:view-member')->name('member.index');
             Route::post('/', [MemberManagementController::class, 'create'])->middleware('permission:create-member')->name('member.create');
             Route::prefix('{uid}')->group(function () {
