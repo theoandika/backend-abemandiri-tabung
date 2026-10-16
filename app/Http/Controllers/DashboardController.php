@@ -32,13 +32,21 @@ class DashboardController extends Controller
                     $dataContentType = [
                         "content_type" => $contentType->code . " - " . $contentType->name,
                         "empty" => 0,
+                        "empty_tube" => [],
                         "filled" => 0,
+                        "filled_tube" => [],
                         "broken" => 0,
+                        "broken_tube" => [],
                         "expired" => 0,
+                        "expired_tube" => [],
                         "display" => 0,
+                        "display_tube" => [],
                         "refill" => 0,
+                        "refill_tube" => [],
                         "borrow" => 0,
-                        "fixing" => 0
+                        "borrow_tube" => [],
+                        "fixing" => 0,
+                        "fixing_tube" => []
                     ];
                     $conditions = [
                         "empty",
@@ -56,9 +64,16 @@ class DashboardController extends Controller
                         ->whereRelation('latestTubeTransaction', 'site_id', $site->id)
                         ->where(function ($q) {
                             $q->whereDoesntHaveRelation('latestTubeTransaction', 'transaction_type', 'sell')
-                            ->orWhere('own', '!=', false);
+                            ->where('own', '!=', false);
                         })->get();
                         $dataContentType[$condition] = $tubes->filter(fn ($model) => $model->status_for_active_own_count == $condition)->count();
+                        foreach ($tubes->filter(fn ($model) => $model->status_for_active_own_count == $condition) as $tube) {
+                            $dataContentType[$condition . "_tube"][] = [
+                                "id" => $tube->uid,
+                                "number" => $tube->number,
+                                "barcode" => $tube->latestTubeBarcode->barcode
+                            ];
+                        }
                     }
                     $dataContentTypes[] = $dataContentType;
                 }
