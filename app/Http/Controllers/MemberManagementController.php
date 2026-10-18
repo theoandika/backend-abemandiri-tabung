@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Helpers\Response;
 use App\Http\Resources\DetailMemberResource;
 use App\Http\Resources\SimpleMemberResource;
+use App\Imports\MemberExcelImport;
 use App\Models\Member;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class MemberManagementController extends Controller
 {
@@ -76,6 +79,64 @@ class MemberManagementController extends Controller
             $member->save();
             DB::commit();
             return Response::created();
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return Response::internalError($th->getMessage());
+        }
+    }
+
+    public function import(Request $r)
+    {
+        $r->validate([
+            'file' => 'bail|required|file|mimes:xlsx,xls,csv'
+        ], [
+            'file.required' => 'Masukkan file excel',
+            'file.file' => 'File tidak valid',
+            'file.mimes' => 'File harus berupa xlsx, xls, atau csv'
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $numberOfFailedRows = 0;
+            $data = (new MemberExcelImport)->toArray($r->file('file'));
+            $validator = Validator::make($data[0], [
+                '*.kode_member' => 'bail|nullable|string|max:20|distinct',
+                '*.nama_member' => 'bail|required|string|max:100',
+                '*.alamat' => 'bail|nullable|string|max:200',
+                '*.telp' => 'bail|nullable|string|max:50'
+            ], [
+                '*.kode_member.max' => 'Kode member maksimal 20 karakter',
+                '*.kode_member.distinct' => 'Kode member :input duplikat',
+                '*.nama_member.required' => 'Masukkan nama member',
+                '*.nama_member.max' => 'Nama member maksimal 100 karakter',
+                '*.alamat.max' => 'Alamat maksimal 200 karakter',
+                '*.telp.max' => 'Nomor telepon maksimal 50 karakter'
+            ]);
+            if ($validator->fails()) {
+                return Response::validation($validator->errors()->toArray());
+            }
+            foreach ($data[0] as $data) {
+                $member = Member::updateOrInsert(
+                    ['code' => $data['kode_member']],
+                    [
+                        'uid' => Str::orderedUuid(),
+                        'name' => $data['nama_member'],
+                        'address' => $data['alamat'],
+                        'phone_number' => $data['telp'],
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]
+                );
+                if (!$member) {
+                    $numberOfFailedRows++;
+                }
+            }
+            DB::commit();
+            if ($numberOfFailedRows > 0) {
+                return Response::success("Import selesai dengan $numberOfFailedRows baris yang gagal");
+            } else {
+                return Response::success('Import sukses');
+            }
         } catch (\Throwable $th) {
             DB::rollBack();
             return Response::internalError($th->getMessage());

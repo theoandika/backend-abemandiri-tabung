@@ -88,6 +88,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [MemberManagementController::class, 'all'])->name('member.all');
             Route::post('index', [MemberManagementController::class, 'index'])->middleware('permission:view-member')->name('member.index');
             Route::post('/', [MemberManagementController::class, 'create'])->middleware('permission:create-member')->name('member.create');
+            Route::post('import', [MemberManagementController::class, 'import'])->middleware('permission:create-member')->name('member.import');
             Route::prefix('{uid}')->group(function () {
                 Route::get('/', [MemberManagementController::class, 'detail'])->middleware('permission:view-member')->name('member.detail');
                 Route::post('/', [MemberManagementController::class, 'update'])->middleware('permission:update-member')->name('member.update');
