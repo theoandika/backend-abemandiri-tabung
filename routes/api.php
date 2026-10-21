@@ -68,6 +68,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [SupplierManagementController::class, 'all'])->name('supplier.all');
             Route::post('index', [SupplierManagementController::class, 'index'])->middleware('permission:view-supplier')->name('supplier.index');
             Route::post('/', [SupplierManagementController::class, 'create'])->middleware('permission:create-supplier')->name('supplier.create');
+            Route::post('import', [SupplierManagementController::class, 'import'])->middleware('permission:create-supplier')->name('supplier.import');
             Route::prefix('{uid}')->group(function () {
                 Route::get('/', [SupplierManagementController::class, 'detail'])->middleware('permission:view-supplier')->name('supplier.detail');
                 Route::post('/', [SupplierManagementController::class, 'update'])->middleware('permission:update-supplier')->name('supplier.update');
