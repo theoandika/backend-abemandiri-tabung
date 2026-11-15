@@ -161,6 +161,7 @@ Route::prefix('v1')->group(function () {
         });
         Route::prefix('dashboard')->group(function () {
             Route::get('active-tube-own-count', [DashboardController::class, 'activeTubeOwnCount'])->name('dashboard.tube-own-count');
+            Route::post('tubes-by-status', [DashboardController::class, 'tubesByStatus'])->name('dashboard.tube-by-status');
         });
     });
 });

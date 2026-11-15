@@ -4,9 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helpers\Response;
 use App\Models\Site;
-use App\Models\Tube;
 use App\Models\TubeContentType;
-use App\Models\TubeTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -25,6 +23,7 @@ class DashboardController extends Controller
             ->get();
             foreach ($sites as $key => $site) {
                 $dataSite = [
+                    "site_id" => $site->uid,
                     "site" => $site->name,
                     "content_type" => []
                 ];
@@ -32,23 +31,16 @@ class DashboardController extends Controller
                 $dataContentTypes = [];
                 foreach ($contentTypes as $key2 => $contentType) {
                     $dataContentType = [
+                        "content_type_id" => $contentType->uid,
                         "content_type" => $contentType->code . " - " . $contentType->name,
                         "empty" => 0,
-                        "empty_tube" => [],
                         "filled" => 0,
-                        "filled_tube" => [],
                         "broken" => 0,
-                        "broken_tube" => [],
                         "expired" => 0,
-                        "expired_tube" => [],
                         "display" => 0,
-                        "display_tube" => [],
                         "refill" => 0,
-                        "refill_tube" => [],
                         "borrow" => 0,
-                        "borrow_tube" => [],
                         "fixing" => 0,
-                        "fixing_tube" => []
                     ];
 
                     $result = DB::table('tubes as tb')
@@ -85,12 +77,74 @@ class DashboardController extends Controller
                         COUNT(CASE WHEN tt.tube_status = 'display' THEN 1 END) AS display_tubes
                     ")
                     ->first();
-
                     $dataContentType['empty'] = $result->empty_tubes;
                     $dataContentType['filled'] = $result->filled_tubes;
                     $dataContentType['broken'] = $result->broken_tubes;
                     $dataContentType['expired'] = $result->expired_tubes;
                     $dataContentType['display'] = $result->display_tubes;
+
+                    $result2 = DB::table('tubes as tb')
+                    ->join('tube_transactions as tt', function ($join) {
+                        $join->on('tt.id', '=', DB::raw('(
+                            SELECT MAX(t.id)
+                            FROM tube_transactions t
+                            WHERE t.tube_id = tb.id
+                        )'));
+                    })
+                    ->join('tube_contents as tc', function ($join) {
+                        $join->on('tc.id', '=', DB::raw('(
+                            SELECT MAX(c.id)
+                            FROM tube_contents c
+                            WHERE c.tube_id = tb.id
+                        )'));
+                    })
+                    ->where('tb.own', 1)
+                    ->where('tt.site_id', $site->id)
+                    ->where('tt.transaction_type', 'out')
+                    ->where('tc.tube_content_type_id', $contentType->id)
+                    ->whereNotExists(function ($query) {
+                        $query->selectRaw('1')
+                            ->from('tube_transactions as sold')
+                            ->whereColumn('sold.tube_id', 'tb.id')
+                            ->where('sold.transaction_type', 'sell');
+                    })
+                    ->selectRaw("COUNT(*) AS borrow_tubes")
+                    ->first();
+                    $dataContentType['borrow'] = $result2->borrow_tubes;
+
+                    $result3 = DB::table('tubes as tb')
+                    ->join('tube_transactions as tt', function ($join) {
+                        $join->on('tt.id', '=', DB::raw('(
+                            SELECT MAX(t.id)
+                            FROM tube_transactions t
+                            WHERE t.tube_id = tb.id
+                        )'));
+                    })
+                    ->join('tube_contents as tc', function ($join) {
+                        $join->on('tc.id', '=', DB::raw('(
+                            SELECT MAX(c.id)
+                            FROM tube_contents c
+                            WHERE c.tube_id = tb.id
+                        )'));
+                    })
+                    ->where('tb.own', 1)
+                    ->where('tt.site_id', $site->id)
+                    ->whereIn('tt.transaction_type', ['refill', 'fixing'])
+                    ->where('tc.tube_content_type_id', $contentType->id)
+                    ->whereNotExists(function ($query) {
+                        $query->selectRaw('1')
+                            ->from('tube_transactions as sold')
+                            ->whereColumn('sold.tube_id', 'tb.id')
+                            ->where('sold.transaction_type', 'sell');
+                    })
+                    ->selectRaw("
+                        COUNT(CASE WHEN tt.transaction_type = 'refill' THEN 1 END) AS refill_tubes,
+                        COUNT(CASE WHEN tt.transaction_type = 'fixing' THEN 1 END) AS fixing_tubes
+                    ")
+                    ->first();
+                    $dataContentType['refill'] = $result3->refill_tubes;
+                    $dataContentType['fixing'] = $result3->fixing_tubes;
+
                     // $conditions = [
                     //     "empty",
                     //     "filled",
@@ -124,6 +178,71 @@ class DashboardController extends Controller
                 $data[] = $dataSite;
             }
             return Response::successData($data);
+        } catch (\Throwable $th) {
+            return Response::internalError($th->getMessage());
+        }
+    }
+
+    public function tubesByStatus(Request $r)
+    {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+        $site = Site::when($user->level != 0, function ($q) use ($sites) {
+            $q->whereIn('id', $sites);
+        })
+        ->where('uid', $r->input('site'))
+        ->first();
+        $contentType = TubeContentType::where('uid', $r->input('content_type'))->first();
+        $status = $r->input('status');
+
+        try {
+            $result = DB::table('tubes as tb')
+            ->join('tube_transactions as tt', function ($join) {
+                $join->on('tt.id', '=', DB::raw('(
+                    SELECT MAX(t.id)
+                    FROM tube_transactions t
+                    WHERE t.tube_id = tb.id
+                )'));
+            })
+            ->join('tube_contents as tc', function ($join) {
+                $join->on('tc.id', '=', DB::raw('(
+                    SELECT MAX(c.id)
+                    FROM tube_contents c
+                    WHERE c.tube_id = tb.id
+                )'));
+            })
+            ->leftJoin('tube_barcodes as tbcode', function ($join) {
+                $join->on('tbcode.id', '=', DB::raw('(
+                    SELECT MAX(b.id)
+                    FROM tube_barcodes b
+                    WHERE b.tube_id = tb.id
+                )'));
+            })
+            ->where('tb.own', 1)
+            ->where('tt.site_id', $site->id)
+            ->when($status == 'empty' || $status == 'filled' || $status == 'broken' || $status == 'expired' || $status == 'display', function ($q) use ($status) {
+                $q->whereIn('tt.transaction_type', ['in', 'return', 'fixed'])
+                ->where('tt.tube_status', $status);
+            })
+            ->when($status == 'borrow', function ($q) {
+                $q->where('tt.transaction_type', 'out');
+            })
+            ->when($status == 'refill', function ($q) {
+                $q->where('tt.transaction_type', 'refill');
+            })
+            ->when($status == 'fixing', function ($q) {
+                $q->where('tt.transaction_type', 'fixing');
+            })
+            ->where('tc.tube_content_type_id', $contentType->id)
+            ->whereNotExists(function ($query) {
+                $query->selectRaw('1')
+                    ->from('tube_transactions as sold')
+                    ->whereColumn('sold.tube_id', 'tb.id')
+                    ->where('sold.transaction_type', 'sell');
+            })
+            ->selectRaw("tb.uid as id, tb.number, tbcode.barcode")
+            ->get();
+            return Response::successData($result);
         } catch (\Throwable $th) {
             return Response::internalError($th->getMessage());
         }
