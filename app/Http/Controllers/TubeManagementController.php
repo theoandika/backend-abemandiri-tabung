@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helpers\ImageCompress;
 use App\Helpers\Response;
 use App\Http\Resources\DetailTubeResource;
+use App\Http\Resources\IndexTubeResource;
 use App\Http\Resources\TubeNumberResource;
 use App\Models\Image;
 use App\Models\Tube;
@@ -51,7 +52,7 @@ class TubeManagementController extends Controller
             } else {
                 $tubes = $_tubes->get();
             }
-            return DetailTubeResource::collection($tubes);
+            return IndexTubeResource::collection($tubes);
         } catch (\Throwable $th) {
             return Response::internalError($th->getMessage());
         }

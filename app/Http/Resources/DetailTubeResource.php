@@ -18,7 +18,7 @@ class DetailTubeResource extends JsonResource
             'id' => $this->uid,
             'site' => new SimpleSiteResource($this->site),
             'number' => $this->number,
-            'barcode' => $this->barcode,
+            'barcode' => $this->latestTubeBarcode?->barcode,
             'tube_content' => new DetailTubeContentTypeResource($this->latestTubeContent->tubeContentType),
             'type' => $this->type,
             'own' => $this->own,
