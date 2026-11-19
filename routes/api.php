@@ -112,6 +112,10 @@ Route::prefix('v1')->group(function () {
         Route::prefix('tube-barcodes')->group(function () {
             Route::post('index', [TubeBarcodeManagementController::class, 'index'])->middleware('permission:view-tube-barcode')->name('tube-barcode.index');
             Route::post('update', [TubeBarcodeManagementController::class, 'update'])->middleware('permission:update-tube-barcode')->name('tube-barcode.update');
+            Route::prefix('{uid}')->group(function () {
+                Route::get('barcode-history', [TubeBarcodeManagementController::class, 'barcodeHistory'])->middleware('permission:view-tube-barcode')->name('tube-barcode.history');
+                Route::post('update', [TubeBarcodeManagementController::class, 'updateSingle'])->middleware('permission:update-tube-barcode')->name('tube-barcode.update-single');
+            });
         });
         Route::prefix('transactions')->group(function () {
             Route::post('index', [TransactionManagementController::class, 'index'])->middleware('permission:view-transaction')->name('transaction.index');

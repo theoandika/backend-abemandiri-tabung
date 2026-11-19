@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helpers\ImageCompress;
 use App\Helpers\Response;
+use App\Http\Resources\DetailBarcodeHistoryResource;
 use App\Http\Resources\DetailTubeWithTubeBarcodeResource;
 use App\Models\Image;
 use App\Models\Tube;
@@ -47,6 +48,12 @@ class TubeBarcodeManagementController extends Controller
         } catch (\Throwable $th) {
             return Response::internalError($th->getMessage());
         }
+    }
+
+    public function barcodeHistory(string $uid)
+    {
+        $tube = Tube::where('uid', $uid)->firstOrFail();
+        return new DetailBarcodeHistoryResource($tube);
     }
 
     public function update(Request $r)
@@ -130,6 +137,73 @@ class TubeBarcodeManagementController extends Controller
                         $photo->type = 'tube';
                         $photo->save();
                     }
+                }
+            }
+            DB::commit();
+            return Response::updated();
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return Response::internalError($th->getMessage());
+        }
+    }
+
+    public function updateSingle(Request $r, string $uid)
+    {
+        $r->validate([
+            'barcode' => 'bail|required|string|max:50',
+            'photo' => 'bail|nullable|image|mimes:png,jpg,jpeg|max:10240'
+        ], [
+            'barcode.required' => 'Masukkan kode barcode',
+            'barcode.max' => 'Kode barcode maksimal 50 karakter',
+            'photo.mimes' => 'Format foto tidak valid. Gunakan format png atau jpg',
+            'photo.max' => 'Ukuran foto maksimal 10MB'
+        ]);
+
+        $tube = Tube::where('uid', $uid)->firstOrFail();
+
+        DB::beginTransaction();
+        try {
+            if ($tube->barcode != $r->input('barcode')) {
+                $exists = TubeBarcode::where('barcode', $r->input('barcode'))->whereNot('tube_id', $tube->id)->latest()->first();
+                if ($exists) {
+                    return Response::error('Kode barcode sudah digunakan');
+                }
+                $barcode = new TubeBarcode;
+                $barcode->tube()->associate($tube);
+                $barcode->barcode = $r->input('barcode');
+                $barcode->save();
+
+                if (!$r->hasFile("photo")) {
+                    return Response::error('Masukkan foto tabung');
+                }
+
+                $optImage = ImageCompress::compress(
+                    $r->file("photo"),
+                    maxDimension: 2048,
+                    quality: 85
+                );
+
+                $_photo = Storage::disk('images')->put('tube', $optImage);
+                $photo = new Image;
+                $photo->imageable()->associate($barcode);
+                $photo->path = $_photo;
+                $photo->type = 'tube';
+                $photo->save();
+            } else {
+                if ($r->hasFile("photo")) {
+                    $tube->latestTubeBarcode?->photo?->delete();
+                    $optImage = ImageCompress::compress(
+                        $r->file("photo"),
+                        maxDimension: 2048,
+                        quality: 85
+                    );
+
+                    $_photo = Storage::disk('images')->put('tube', $optImage);
+                    $photo = new Image;
+                    $photo->imageable()->associate($tube->latestTubeBarcode);
+                    $photo->path = $_photo;
+                    $photo->type = 'tube';
+                    $photo->save();
                 }
             }
             DB::commit();
