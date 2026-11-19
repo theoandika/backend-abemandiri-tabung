@@ -166,7 +166,7 @@ class TubeBarcodeManagementController extends Controller
             if ($tube->barcode != $r->input('barcode')) {
                 $exists = TubeBarcode::where('barcode', $r->input('barcode'))->whereNot('tube_id', $tube->id)->latest()->first();
                 if ($exists) {
-                    return Response::error('Kode barcode sudah digunakan');
+                    return Response::error('Kode barcode sudah digunakan', 422);
                 }
                 $barcode = new TubeBarcode;
                 $barcode->tube()->associate($tube);
@@ -174,7 +174,7 @@ class TubeBarcodeManagementController extends Controller
                 $barcode->save();
 
                 if (!$r->hasFile("photo")) {
-                    return Response::error('Masukkan foto tabung');
+                    return Response::error('Masukkan foto tabung', 422);
                 }
 
                 $optImage = ImageCompress::compress(
