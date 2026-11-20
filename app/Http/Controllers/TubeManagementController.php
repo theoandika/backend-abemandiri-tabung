@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\TubeExcelExport;
 use App\Helpers\ImageCompress;
 use App\Helpers\Response;
 use App\Http\Resources\DetailTubeResource;
@@ -15,6 +16,7 @@ use App\Models\TubeContentType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Excel;
 
 class TubeManagementController extends Controller
 {
@@ -432,6 +434,74 @@ class TubeManagementController extends Controller
             return Response::deleted();
         } catch (\Throwable $th) {
             DB::rollBack();
+            return Response::internalError($th->getMessage());
+        }
+    }
+
+    public function export(Request $r)
+    {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+        $r->validate([
+            'search' => 'bail|nullable|string|max:50',
+            'content' => 'bail|nullable|string',
+            'type' => 'bail|nullable|string',
+            'own' => 'bail|nullable|boolean',
+            'active' => 'bail|nullable|boolean',
+            'paginate' => 'bail|nullable|integer|min:1'
+        ]);
+
+        try {
+            $_tubes = Tube::when($r->input('search'), function ($q, $search) {
+                $q->where(function ($q) use ($search) {
+                    $q->where('number', 'like', '%'.$search.'%')
+                    ->orWhereRelation('latestTubeBarcode', 'barcode', 'like', '%'.$search.'%');
+                });
+            })
+            ->when($user->level != 0, function ($q) use ($sites) {
+                $q->whereHas('latestTubeTransaction', function ($q) use ($sites) {
+                    $q->whereIn('site_id', $sites)
+                    ->where(function ($q) {
+                        $q->where(function ($q) {
+                            $q->where('transaction_type', 'out')
+                            ->whereNotNull('locationable_type');
+                        })
+                        ->orWhereIn('transaction_type', ['in', 'sell', 'return', 'refill', 'fixing']);
+                    });
+                });
+            })
+            ->when($r->input('content'), function ($q, $content) {
+                $q->whereRelation('latestTubeContent.tubeContentType', 'uid', $content);
+            })
+            ->when($r->input('type'), function ($q, $type) {
+                $q->where('type', $type);
+            })
+            ->when($r->filled('own'), function ($q) use ($r) {
+                if ($r->boolean('own')) {
+                    $q->where('own', true)
+                    ->whereDoesntHave('tubeTransactions', function ($q) {
+                        $q->where('transaction_type', 'sell');
+                    });
+                } else {
+                    $q->where(function ($q) {
+                        $q->where('own', false)
+                        ->orWhereHas('tubeTransactions', function ($q) {
+                            $q->where('transaction_type', 'sell');
+                        });
+                    });
+                }
+            })
+            ->when($r->filled('active'), function ($q) use ($r) {
+                if ($r->boolean('active')) {
+                    $q->where('active', true);
+                } else {
+                    $q->where('active', false);
+                }
+            })
+            ->orderBy('number')
+            ->get();
+            return new TubeExcelExport($_tubes)->download();
+        } catch (\Throwable $th) {
             return Response::internalError($th->getMessage());
         }
     }
