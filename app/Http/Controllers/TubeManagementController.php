@@ -24,6 +24,10 @@ class TubeManagementController extends Controller
         $sites = $user->userSites->pluck('site_id');
         $r->validate([
             'search' => 'bail|nullable|string|max:50',
+            'content' => 'bail|nullable|string',
+            'type' => 'bail|nullable|string',
+            'own' => 'bail|nullable|boolean',
+            'active' => 'bail|nullable|boolean',
             'paginate' => 'bail|nullable|integer|min:1'
         ]);
 
@@ -45,6 +49,34 @@ class TubeManagementController extends Controller
                         ->orWhereIn('transaction_type', ['in', 'sell', 'return', 'refill', 'fixing']);
                     });
                 });
+            })
+            ->when($r->input('content'), function ($q, $content) {
+                $q->whereRelation('latestTubeContent.tubeContentType', 'uid', $content);
+            })
+            ->when($r->input('type'), function ($q, $type) {
+                $q->where('type', $type);
+            })
+            ->when($r->filled('own'), function ($q) use ($r) {
+                if ($r->boolean('own')) {
+                    $q->where('own', true)
+                    ->whereDoesntHave('tubeTransactions', function ($q) {
+                        $q->where('transaction_type', 'sell');
+                    });
+                } else {
+                    $q->where(function ($q) {
+                        $q->where('own', false)
+                        ->orWhereHas('tubeTransactions', function ($q) {
+                            $q->where('transaction_type', 'sell');
+                        });
+                    });
+                }
+            })
+            ->when($r->filled('active'), function ($q) use ($r) {
+                if ($r->boolean('active')) {
+                    $q->where('active', true);
+                } else {
+                    $q->where('active', false);
+                }
             })
             ->orderBy('number');
             if ($r->filled('paginate')) {
