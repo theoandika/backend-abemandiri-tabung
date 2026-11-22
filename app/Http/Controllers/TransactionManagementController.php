@@ -24,6 +24,11 @@ class TransactionManagementController extends Controller
         $sites = $user->userSites->pluck('site_id');
         $r->validate([
             'search' => 'bail|nullable|string|max:50',
+            'date' => 'bail|nullable|date_format:Y-m-d',
+            'site' => 'bail|nullable|string',
+            'member' => 'bail|nullable|string',
+            'in_or_out' => 'bail|nullable|string',
+            'condition' => 'bail|nullable|string',
             'paginate' => 'bail|nullable|integer|min:1'
         ]);
 
@@ -40,6 +45,9 @@ class TransactionManagementController extends Controller
             })
             ->when($user->level != 0, function ($q) use ($sites) {
                 $q->whereIn('site_id', $sites);
+            })
+            ->when($r->input('date'), function ($q, $date) {
+                $q->whereDate('date', $date);
             })
             ->orderByDesc('date')
             ->orderByDesc('created_at');
