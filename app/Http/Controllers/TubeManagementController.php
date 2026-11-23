@@ -448,7 +448,6 @@ class TubeManagementController extends Controller
             'type' => 'bail|nullable|string',
             'own' => 'bail|nullable|boolean',
             'active' => 'bail|nullable|boolean',
-            'paginate' => 'bail|nullable|integer|min:1'
         ]);
 
         try {
