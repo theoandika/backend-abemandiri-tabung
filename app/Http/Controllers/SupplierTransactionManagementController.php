@@ -22,6 +22,11 @@ class SupplierTransactionManagementController extends Controller
         $sites = $user->userSites->pluck('site_id');
         $r->validate([
             'search' => 'bail|nullable|string|max:50',
+            'date' => 'bail|nullable|date_format:Y-m-d',
+            'site' => 'bail|nullable|string',
+            'supplier' => 'bail|nullable|string',
+            'refill_or_fix' => 'bail|nullable|string',
+            'condition' => 'bail|nullable|string',
             'paginate' => 'bail|nullable|integer|min:1'
         ]);
 
@@ -33,11 +38,29 @@ class SupplierTransactionManagementController extends Controller
                     })
                     ->orWhereHas('supplier', function ($q3) use ($r) {
                         $q3->where('name', 'like', '%' . $r->input('search') . '%');
+                    })
+                    ->orWhereHas('supplier', function ($q) use ($r) {
+                        $q->where('code', 'like', '%' . $r->input('search') . '%');
                     });
                 });
             })
             ->when($user->level != 0, function ($q) use ($sites) {
                 $q->whereIn('site_id', $sites);
+            })
+            ->when($r->input('date'), function ($q, $date) {
+                $q->whereDate('date', $date);
+            })
+            ->when($r->input('site'), function ($q, $site) {
+                $q->whereRelation('site', 'uid', $site);
+            })
+            ->when($r->input('supplier'), function ($q, $supplier) {
+                $q->whereRelation('supplier', 'uid', $supplier);
+            })
+            ->when($r->input('refill_or_fix'), function ($q, $inorout) {
+                $q->where('transaction_type', $inorout);
+            })
+            ->when($r->input('condition'), function ($q, $condition) {
+                $q->where('tube_status', $condition);
             })
             ->orderByDesc('date')
             ->orderByDesc('created_at');
@@ -234,6 +257,74 @@ class SupplierTransactionManagementController extends Controller
             DB::commit();
         } catch (\Throwable $th) {
             DB::rollBack();
+            return Response::internalError($th->getMessage());
+        }
+    }
+
+    public function export(Request $r)
+    {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+        $r->validate([
+            'search' => 'bail|nullable|string|max:50',
+            'date' => 'bail|nullable|date_format:Y-m-d',
+            'site' => 'bail|nullable|string',
+            'supplier' => 'bail|nullable|string',
+            'refill_or_fix' => 'bail|nullable|string',
+            'condition' => 'bail|nullable|string',
+        ]);
+
+        try {
+            $_transactions = DB::table('supplier_transactions as t')
+            ->leftJoin('suppliers as ss', 'ss.id', '=', 't.supplier_id')
+            ->leftJoin('sites as s', 's.id', '=', 't.site_id')
+            ->select([
+                't.id',
+                't.date',
+                't.created_at',
+                't.transaction_type',
+                't.tube_status',
+                's.name as site_name',
+                'ss.code as supplier_code',
+                'ss.name as supplier_name',
+            ])
+            ->selectSub(function ($query) {
+                $query->from('supplier_transaction_items as ti')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('ti.supplier_transaction_id', 't.id');
+            }, 'transaction_items_count')
+            ->when($r->filled('search'), function ($query) use ($r) {
+                $search = '%' . $r->input('search') . '%';
+
+                $query->where(function ($q) use ($search) {
+                    $q->where('s.name', 'like', $search)
+                        ->orWhere('ss.name', 'like', $search)
+                        ->orWhere('ss.code', 'like', $search);
+                });
+            })
+            ->when($user->level != 0, function ($q) use ($sites) {
+                $q->whereIn('t.site_id', $sites);
+            })
+            ->when($r->input('date'), function ($q, $date) {
+                $q->whereDate('t.date', $date);
+            })
+            ->when($r->input('site'), function ($q, $site) {
+                $q->where('s.uid', $site);
+            })
+            ->when($r->input('supplier'), function ($q, $supplier) {
+                $q->where('ss.uid', $supplier);
+            })
+            ->when($r->input('refill_or_fix'), function ($q, $inorout) {
+                $q->where('t.transaction_type', $inorout);
+            })
+            ->when($r->input('condition'), function ($q, $condition) {
+                $q->where('t.tube_status', $condition);
+            })
+            ->orderByDesc('t.date')
+            ->orderByDesc('t.created_at')
+            ->get();
+            return Response::successData($_transactions);
+        } catch (\Throwable $th) {
             return Response::internalError($th->getMessage());
         }
     }

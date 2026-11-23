@@ -130,6 +130,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('supplier-transactions')->group(function () {
             Route::post('index', [SupplierTransactionManagementController::class, 'index'])->middleware('permission:view-supplier-transaction')->name('supplier-transaction.index');
             Route::post('/', [SupplierTransactionManagementController::class, 'create'])->middleware('permission:create-supplier-transaction')->name('supplier-transaction.create');
+            Route::post('export', [SupplierTransactionManagementController::class, 'export'])->middleware('permission:view-supplier-transaction')->name('supplier-transaction.export');
             Route::prefix('{uid}')->group(function () {
                 Route::get('/', [SupplierTransactionManagementController::class, 'detail'])->middleware('permission:view-supplier-transaction')->name('supplier-transaction.detail');
                 Route::delete('/', [SupplierTransactionManagementController::class, 'delete'])->middleware('permission:delete-supplier-transaction')->name('supplier-transaction.delete');
