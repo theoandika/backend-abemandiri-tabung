@@ -21,7 +21,7 @@ class StockOpnameItemResource extends JsonResource
             'match' => $this->match,
             'adjust' => $this->adjust,
             'note' => $this->note,
-            'photo' => $this->photo->url
+            'photo' => $this->photo?->url
         ];
     }
 }
