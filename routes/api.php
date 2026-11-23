@@ -121,6 +121,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('transactions')->group(function () {
             Route::post('index', [TransactionManagementController::class, 'index'])->middleware('permission:view-transaction')->name('transaction.index');
             Route::post('/', [TransactionManagementController::class, 'create'])->middleware('permission:create-transaction')->name('transaction.create');
+            Route::post('export', [TransactionManagementController::class, 'export'])->middleware('permission:view-transaction')->name('transaction.export');
             Route::prefix('{uid}')->group(function () {
                 Route::get('/', [TransactionManagementController::class, 'detail'])->middleware('permission:view-transaction')->name('transaction.detail');
                 Route::delete('/', [TransactionManagementController::class, 'delete'])->middleware('permission:delete-transaction')->name('transaction.delete');

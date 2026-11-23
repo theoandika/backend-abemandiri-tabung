@@ -40,6 +40,9 @@ class TransactionManagementController extends Controller
                     })
                     ->orWhereHas('member', function ($q3) use ($r) {
                         $q3->where('name', 'like', '%' . $r->input('search') . '%');
+                    })
+                    ->orWhereHas('member', function ($q3) use ($r) {
+                        $q3->where('code', 'like', '%' . $r->input('search') . '%');
                     });
                 });
             })
@@ -48,6 +51,18 @@ class TransactionManagementController extends Controller
             })
             ->when($r->input('date'), function ($q, $date) {
                 $q->whereDate('date', $date);
+            })
+            ->when($r->input('site'), function ($q, $site) {
+                $q->whereRelation('site', 'uid', $site);
+            })
+            ->when($r->input('member'), function ($q, $member) {
+                $q->whereRelation('member', 'uid', $member);
+            })
+            ->when($r->input('in_or_out'), function ($q, $inorout) {
+                $q->where('transaction_type', $inorout);
+            })
+            ->when($r->input('condition'), function ($q, $condition) {
+                $q->where('tube_status', $condition);
             })
             ->orderByDesc('date')
             ->orderByDesc('created_at');
@@ -309,4 +324,72 @@ class TransactionManagementController extends Controller
     //         return Response::internalError($th->getMessage());
     //     }
     // }
+
+    public function export(Request $r)
+    {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+        $r->validate([
+            'search' => 'bail|nullable|string|max:50',
+            'date' => 'bail|nullable|date_format:Y-m-d',
+            'site' => 'bail|nullable|string',
+            'member' => 'bail|nullable|string',
+            'in_or_out' => 'bail|nullable|string',
+            'condition' => 'bail|nullable|string',
+        ]);
+
+        try {
+            $_transactions = DB::table('transactions as t')
+            ->leftJoin('members as m', 'm.id', '=', 't.member_id')
+            ->leftJoin('sites as s', 's.id', '=', 't.site_id')
+            ->select([
+                't.id',
+                't.date',
+                't.created_at',
+                't.transaction_type',
+                't.tube_status',
+                's.name as site_name',
+                'm.code as member_code',
+                'm.name as member_name',
+            ])
+            ->selectSub(function ($query) {
+                $query->from('transaction_items as ti')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('ti.transaction_id', 't.id');
+            }, 'transaction_items_count')
+            ->when($r->filled('search'), function ($query) use ($r) {
+                $search = '%' . $r->input('search') . '%';
+
+                $query->where(function ($q) use ($search) {
+                    $q->where('s.name', 'like', $search)
+                        ->orWhere('m.name', 'like', $search)
+                        ->orWhere('m.code', 'like', $search);
+                });
+            })
+            ->when($user->level != 0, function ($q) use ($sites) {
+                $q->whereIn('t.site_id', $sites);
+            })
+            ->when($r->input('date'), function ($q, $date) {
+                $q->whereDate('t.date', $date);
+            })
+            ->when($r->input('site'), function ($q, $site) {
+                $q->where('s.uid', $site);
+            })
+            ->when($r->input('member'), function ($q, $member) {
+                $q->where('m.uid', $member);
+            })
+            ->when($r->input('in_or_out'), function ($q, $inorout) {
+                $q->where('t.transaction_type', $inorout);
+            })
+            ->when($r->input('condition'), function ($q, $condition) {
+                $q->where('t.tube_status', $condition);
+            })
+            ->orderByDesc('t.date')
+            ->orderByDesc('t.created_at')
+            ->get();
+            return Response::successData($_transactions);
+        } catch (\Throwable $th) {
+            return Response::internalError($th->getMessage());
+        }
+    }
 }
