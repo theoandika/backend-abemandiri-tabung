@@ -289,7 +289,7 @@ class ReportController extends Controller
         $sites = $user->userSites->pluck('site_id');
         $r->validate([
             'search' => 'bail|nullable|string|max:50',
-            'date' => 'bail|required|date_format:Y-m-d',
+            'date' => 'bail|nullable|date_format:Y-m-d',
             'site' => 'bail|nullable|string',
             'content' => 'bail|nullable|string',
             'transaction_type' => 'bail|nullable|string',
