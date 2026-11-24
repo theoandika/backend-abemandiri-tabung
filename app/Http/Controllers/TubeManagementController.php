@@ -499,7 +499,7 @@ class TubeManagementController extends Controller
             })
             ->orderBy('number')
             ->get();
-            return new TubeExcelExport($_tubes)->download();
+            return (new TubeExcelExport($_tubes))->download();
         } catch (\Throwable $th) {
             return Response::internalError($th->getMessage());
         }
