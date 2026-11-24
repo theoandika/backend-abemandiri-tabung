@@ -38,12 +38,14 @@ class TubeTransaction extends Model
                 $lastContentType = TubeContent::where('tube_id', $attr['tube_id'])
                     ->where('created_at', '<=', $attr['date'])
                     ->orderByDesc('created_at')
+                    ->orderByDesc('id')
                     ->first();
                 if ($lastContentType) {
                     return $lastContentType->tubeContentType;
                 } else {
                     $lastContentType = TubeContent::where('tube_id', $attr['tube_id'])
-                        ->orderBy('created_at')
+                        ->orderByDesc('created_at')
+                        ->orderByDesc('id')
                         ->first();
                     return $lastContentType->tubeContentType;
                 }
