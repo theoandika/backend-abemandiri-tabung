@@ -139,7 +139,8 @@ Route::prefix('v1')->group(function () {
         Route::prefix('reports')->group(function () {
             Route::post('tube-activities', [ReportController::class, 'tubeActivity'])->middleware('permission:view-tube-activity')->name('report.tube-activity');
             Route::post('export-tube-activities', [ReportController::class, 'exportTubeActivity'])->middleware('permission:view-tube-activity')->name('export.tube-activity');
-            Route::get('tube-stock-opnames', [ReportController::class, 'tubeStockOpname'])->middleware('permission:view-tube-stock-opname')->name('report.tube-stock-opname');
+            Route::post('tube-stock-opnames', [ReportController::class, 'tubeStockOpname'])->middleware('permission:view-tube-stock-opname')->name('report.tube-stock-opname');
+            Route::post('export-tube-stock-opnames', [ReportController::class, 'exportTubeStockOpname'])->middleware('permission:view-tube-stock-opname')->name('export.tube-stock-opname');
             Route::post('last-tube-position', [ReportController::class, 'tubeLastPosition'])->middleware('permission:view-last-tube-position')->name('report.last-tube-position');
         });
         Route::prefix('stock-opnames')->group(function () {

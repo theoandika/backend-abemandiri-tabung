@@ -70,45 +70,58 @@ class ReportController extends Controller
                                 AND locationable_type IS NULL
                                 THEN 'Transit'
 
-                            WHEN transaction_type IN ('out', 'sell')
-                                AND locationable_type = 'App\\\\Models\\\\Member'
+                            WHEN transaction_type = 'out'
+                                AND locationable_type = ?
                                 THEN (
                                     SELECT CONCAT(m.code, ' - ', m.name)
                                     FROM members m
-                                    WHERE m.id = tube_transactions.locationable_id
+                                    WHERE m.id = locationable_id
                                     LIMIT 1
                                 )
 
-                            WHEN (
-                                transaction_type IN ('in', 'return')
-                                AND (
-                                    locationable_type = 'App\\\\Models\\\\Member'
-                                    OR locationable_type IS NULL
-                                )
-                            )
-                            OR (
-                                transaction_type IN ('filled', 'fixed')
-                                AND locationable_type = 'App\\\\Models\\\\Supplier'
-                            )
+                            WHEN transaction_type = 'out'
+                                AND locationable_type = ?
                                 THEN (
-                                    SELECT s.name
-                                    FROM sites s
-                                    WHERE s.id = tube_transactions.site_id
+                                    SELECT CONCAT(s.code, ' - ', s.name)
+                                    FROM suppliers s
+                                    WHERE s.id = locationable_id
+                                    LIMIT 1
+                                )
+
+                            WHEN transaction_type = 'out'
+                                THEN NULL
+
+                            WHEN transaction_type IN ('in', 'return', 'filled', 'fixed')
+                                THEN (
+                                    SELECT si.name
+                                    FROM sites si
+                                    WHERE si.id = site_id
                                     LIMIT 1
                                 )
 
                             WHEN transaction_type IN ('refill', 'fixing')
-                                AND locationable_type = 'App\\\\Models\\\\Supplier'
                                 THEN (
-                                    SELECT CONCAT(sp.code, ' - ', sp.name)
-                                    FROM suppliers sp
-                                    WHERE sp.id = tube_transactions.locationable_id
+                                    SELECT CONCAT(s.code, ' - ', s.name)
+                                    FROM suppliers s
+                                    WHERE s.id = locationable_id
+                                    LIMIT 1
+                                )
+
+                            WHEN transaction_type = 'sell'
+                                THEN (
+                                    SELECT CONCAT(m.code, ' - ', m.name)
+                                    FROM members m
+                                    WHERE m.id = locationable_id
                                     LIMIT 1
                                 )
 
                             ELSE 'Tidak diketahui'
                         END LIKE ?
-                    ", [$keyword]);
+                    ", [
+                        \App\Models\Member::class,
+                        \App\Models\Supplier::class,
+                        $keyword
+                    ]);
                 });
             })
             ->when($r->input('content'), function ($q, $content) {
@@ -159,36 +172,14 @@ class ReportController extends Controller
                             AND locationable_type IS NULL
                             THEN 'transit'
 
-                        WHEN transaction_type = 'out'
-                            AND locationable_type = 'App\\\\Models\\\\Member'
+                        WHEN transaction_type IN ('out', 'sell')
                             THEN 'member'
 
-                        WHEN transaction_type IN ('in', 'return')
-                            AND (
-                                locationable_type = 'App\\\\Models\\\\Member'
-                                OR locationable_type IS NULL
-                            )
+                        WHEN transaction_type IN ('in', 'return', 'filled', 'fixed')
                             THEN 'site'
 
-                        WHEN transaction_type = 'refill'
-                            AND locationable_type = 'App\\\\Models\\\\Supplier'
+                        WHEN transaction_type IN ('refill', 'fixing')
                             THEN 'supplier'
-
-                        WHEN transaction_type = 'filled'
-                            AND locationable_type = 'App\\\\Models\\\\Supplier'
-                            THEN 'site'
-
-                        WHEN transaction_type = 'sell'
-                            AND locationable_type = 'App\\\\Models\\\\Member'
-                            THEN 'member'
-
-                        WHEN transaction_type = 'fixing'
-                            AND locationable_type = 'App\\\\Models\\\\Supplier'
-                            THEN 'supplier'
-
-                        WHEN transaction_type = 'fixed'
-                            AND locationable_type = 'App\\\\Models\\\\Supplier'
-                            THEN 'site'
 
                         ELSE 'unknown'
                     END = ?
@@ -229,15 +220,211 @@ class ReportController extends Controller
     {
         $user = $r->user();
         $sites = $user->userSites->pluck('site_id');
+        $r->validate([
+            'search' => 'bail|nullable|string|max:50',
+            'date' => 'bail|nullable|date_format:Y-m-d',
+            'site' => 'bail|nullable|string',
+            'content' => 'bail|nullable|string',
+            'type' => 'bail|nullable|string',
+            'own' => 'bail|nullable|boolean',
+            'condition' => 'bail|nullable|string',
+            'location' => 'bail|nullable|string',
+            'match' => 'bail|nullable|boolean',
+            'adjust' => 'bail|nullable|boolean',
+            'paginate' => 'bail|nullable|integer|min:1'
+        ]);
 
         try {
-            $tubes = StockOpnameItem::when($user->level != 0, function ($q) use ($sites) {
+            $tubes = StockOpnameItem::query()
+            // Relasi yang dibutuhkan resource
+            ->with([
+                'tube',
+                'stockOpname',
+                'tubeTransaction',
+            ])
+            // Hak akses site
+            ->when($user->level != 0, function ($q) use ($sites) {
                 $q->whereHas('stockOpname', function ($q) use ($sites) {
                     $q->whereIn('site_id', $sites);
                 });
             })
-            ->orderByDesc('id')
-            ->get();
+            // Search nomor, barcode, location name
+            ->when($r->input('search'), function ($q, $search) {
+                $keyword = "%{$search}%";
+                $q->where(function ($q) use ($keyword) {
+                    $q->whereHas('tube', function ($q) use ($keyword) {
+                        $q->where('number', 'like', $keyword);
+                    })
+                    ->orWhereExists(function ($sub) use ($keyword) {
+                        $sub->selectRaw('1')
+                            ->from('tube_transactions as tt')
+                            ->whereColumn('tt.id', 'stock_opname_items.tube_transaction_id')
+                            ->whereRaw("
+                                (
+                                    SELECT tb.barcode
+                                    FROM tube_barcodes tb
+                                    WHERE tb.tube_id = stock_opname_items.tube_id
+                                    ORDER BY
+                                        CASE
+                                            WHEN tb.created_at <= tt.date THEN 0
+                                            ELSE 1
+                                        END,
+                                        tb.created_at DESC,
+                                        tb.id DESC
+                                    LIMIT 1
+                                ) LIKE ?
+                            ", [$keyword]);
+                    })
+                    ->orWhereExists(function ($sub) use ($keyword) {
+                        $sub->selectRaw('1')
+                        ->from('tube_transactions as tt')
+                        ->leftJoin('sites as s', 's.id', '=', 'tt.site_id')
+                        ->whereColumn('tt.id', 'stock_opname_items.tube_transaction_id')
+                        ->whereRaw("
+                            CASE
+                                WHEN tt.transaction_type = 'out'
+                                    AND tt.locationable_type IS NULL
+                                    THEN 'Transit'
+
+                                WHEN tt.transaction_type = 'out'
+                                    AND tt.locationable_type = ?
+                                    THEN (
+                                        SELECT CONCAT(m.code, ' - ', m.name)
+                                        FROM members m
+                                        WHERE m.id = locationable_id
+                                        LIMIT 1
+                                    )
+
+                                WHEN tt.transaction_type = 'out'
+                                    AND tt.locationable_type = ?
+                                    THEN (
+                                        SELECT CONCAT(s.code, ' - ', s.name)
+                                        FROM suppliers s
+                                        WHERE s.id = locationable_id
+                                        LIMIT 1
+                                    )
+
+                                WHEN tt.transaction_type = 'out'
+                                    THEN NULL
+
+                                WHEN tt.transaction_type IN ('in', 'return', 'filled', 'fixed')
+                                    THEN (
+                                        SELECT si.name
+                                        FROM sites si
+                                        WHERE si.id = site_id
+                                        LIMIT 1
+                                    )
+
+                                WHEN tt.transaction_type IN ('refill', 'fixing')
+                                    THEN (
+                                        SELECT CONCAT(s.code, ' - ', s.name)
+                                        FROM suppliers s
+                                        WHERE s.id = locationable_id
+                                        LIMIT 1
+                                    )
+
+                                WHEN tt.transaction_type = 'sell'
+                                    THEN (
+                                        SELECT CONCAT(m.code, ' - ', m.name)
+                                        FROM members m
+                                        WHERE m.id = locationable_id
+                                        LIMIT 1
+                                    )
+
+                                ELSE 'Tidak diketahui'
+                            END LIKE ?
+                        ", [
+                            \App\Models\Member::class,
+                            \App\Models\Supplier::class,
+                            $keyword,
+                        ]);
+                    });
+                });
+            })
+            ->when($r->input('date'), function ($q, $date) {
+                $q->whereHas('stockOpname', function ($q) use ($date) {
+                    $q->whereDate('date', $date);
+                });
+            })
+            ->when($r->input('site'), function ($q, $site) {
+                $q->whereHas('stockOpname.site', function ($q) use ($site) {
+                    $q->where('uid', $site);
+                });
+            })
+            ->when($r->input('content'), function ($q, $content) {
+                $q->whereHas('stockOpname.tubeContentType', function ($q) use ($content) {
+                    $q->where('uid', $content);
+                });
+            })
+            ->when($r->input('type'), function ($q, $type) {
+                $q->whereHas('tube', function ($q) use ($type) {
+                    $q->where('type', $type);
+                });
+            })
+            ->when($r->filled('own'), function ($q) use ($r) {
+                $isOwn = $r->boolean('own');
+
+                $q->whereHas('tube', function ($q) use ($isOwn) {
+                    if ($isOwn) {
+                        $q->where('own', 1)
+                            ->whereNotExists(function ($sub) {
+                                $sub->selectRaw('1')
+                                    ->from('tube_transactions as tt')
+                                    ->whereColumn('tt.tube_id', 'tubes.id')
+                                    ->where('tt.transaction_type', 'sell');
+                            });
+                    } else {
+                        $q->where(function ($q) {
+                            $q->where('own', 0)
+                                ->orWhereExists(function ($sub) {
+                                    $sub->selectRaw('1')
+                                        ->from('tube_transactions as tt')
+                                        ->whereColumn('tt.tube_id', 'tubes.id')
+                                        ->where('tt.transaction_type', 'sell');
+                                });
+                        });
+                    }
+                });
+            })
+            ->when($r->input('condition'), function ($q, $condition) {
+                $q->whereHas('stockOpname', function ($q) use ($condition) {
+                    $q->where('tube_status', $condition);
+                });
+            })
+            ->when($r->filled('match'), function ($q) use ($r) {
+                $q->where('match', $r->boolean('match'));
+            })
+            ->when($r->filled('adjust'), function ($q) use ($r) {
+                $q->where('adjust', $r->boolean('adjust'));
+            })
+            ->when($r->input('location'), function ($q, $location) {
+                $q->whereHas('tubeTransaction', function ($q) use ($location) {
+                    $q->whereRaw("
+                        CASE
+                            WHEN transaction_type = 'out'
+                                AND locationable_type IS NULL
+                                THEN 'transit'
+
+                            WHEN transaction_type IN ('out', 'sell')
+                                THEN 'member'
+
+                            WHEN transaction_type IN ('in', 'return', 'filled', 'fixed')
+                                THEN 'site'
+
+                            WHEN transaction_type IN ('refill', 'fixing')
+                                THEN 'supplier'
+
+                            ELSE 'unknown'
+                        END = ?
+                    ", [$location]);
+                });
+            })
+            ->orderByDesc('id');
+            if ($r->filled('paginate')) {
+                $tubes = $tubes->paginate($r->integer('paginate'));
+            } else {
+                $tubes = $tubes->get();
+            }
             return StockOpnameReportResource::collection($tubes);
         } catch (\Throwable $th) {
             return Response::internalError($th->getMessage());
@@ -389,32 +576,17 @@ class ReportController extends Controller
                         THEN 'transit'
 
                     WHEN tt.transaction_type IN ('out', 'sell')
-                        AND tt.locationable_type = ?
                         THEN 'member'
 
-                    WHEN tt.transaction_type IN ('in', 'return')
-                        AND (
-                            tt.locationable_type = ?
-                            OR tt.locationable_type IS NULL
-                        )
+                    WHEN tt.transaction_type IN ('in', 'return', 'filled', 'fixed')
                         THEN 'site'
 
                     WHEN tt.transaction_type IN ('refill', 'fixing')
-                        AND tt.locationable_type = ?
                         THEN 'supplier'
-
-                    WHEN tt.transaction_type IN ('filled', 'fixed')
-                        AND tt.locationable_type = ?
-                        THEN 'site'
 
                     ELSE 'unknown'
                 END AS position
-            ", [
-                \App\Models\Member::class,
-                \App\Models\Member::class,
-                \App\Models\Supplier::class,
-                \App\Models\Supplier::class,
-            ])
+            ")
 
             // Position name
             ->selectRaw("
@@ -423,34 +595,48 @@ class ReportController extends Controller
                         AND tt.locationable_type IS NULL
                         THEN 'Transit'
 
-                    WHEN tt.transaction_type IN ('out', 'sell')
+                    WHEN tt.transaction_type = 'out'
                         AND tt.locationable_type = ?
                         THEN (
                             SELECT CONCAT(m.code, ' - ', m.name)
                             FROM members m
-                            WHERE m.id = tt.locationable_id
+                            WHERE m.id = locationable_id
                             LIMIT 1
                         )
 
-                    WHEN (
-                        tt.transaction_type IN ('in', 'return')
-                        AND (
-                            tt.locationable_type = ?
-                            OR tt.locationable_type IS NULL
-                        )
-                    )
-                    OR (
-                        tt.transaction_type IN ('filled', 'fixed')
-                        AND tt.locationable_type = ?
-                    )
-                        THEN s.name
-
-                    WHEN tt.transaction_type IN ('refill', 'fixing')
+                    WHEN tt.transaction_type = 'out'
                         AND tt.locationable_type = ?
                         THEN (
-                            SELECT CONCAT(sp.code, ' - ', sp.name)
-                            FROM suppliers sp
-                            WHERE sp.id = tt.locationable_id
+                            SELECT CONCAT(s.code, ' - ', s.name)
+                            FROM suppliers s
+                            WHERE s.id = locationable_id
+                            LIMIT 1
+                        )
+
+                    WHEN tt.transaction_type = 'out'
+                        THEN NULL
+
+                    WHEN tt.transaction_type IN ('in', 'return', 'filled', 'fixed')
+                        THEN (
+                            SELECT si.name
+                            FROM sites si
+                            WHERE si.id = site_id
+                            LIMIT 1
+                        )
+
+                    WHEN tt.transaction_type IN ('refill', 'fixing')
+                        THEN (
+                            SELECT CONCAT(s.code, ' - ', s.name)
+                            FROM suppliers s
+                            WHERE s.id = locationable_id
+                            LIMIT 1
+                        )
+
+                    WHEN tt.transaction_type = 'sell'
+                        THEN (
+                            SELECT CONCAT(m.code, ' - ', m.name)
+                            FROM members m
+                            WHERE m.id = locationable_id
                             LIMIT 1
                         )
 
@@ -458,8 +644,6 @@ class ReportController extends Controller
                 END AS position_name
             ", [
                 \App\Models\Member::class,
-                \App\Models\Member::class,
-                \App\Models\Supplier::class,
                 \App\Models\Supplier::class,
             ])
 
@@ -507,34 +691,48 @@ class ReportController extends Controller
                                     AND tt.locationable_type IS NULL
                                     THEN 'Transit'
 
-                                WHEN tt.transaction_type IN ('out', 'sell')
+                                WHEN tt.transaction_type = 'out'
                                     AND tt.locationable_type = ?
                                     THEN (
                                         SELECT CONCAT(m.code, ' - ', m.name)
                                         FROM members m
-                                        WHERE m.id = tt.locationable_id
+                                        WHERE m.id = locationable_id
                                         LIMIT 1
                                     )
 
-                                WHEN (
-                                    tt.transaction_type IN ('in', 'return')
-                                    AND (
-                                        tt.locationable_type = ?
-                                        OR tt.locationable_type IS NULL
-                                    )
-                                )
-                                OR (
-                                    tt.transaction_type IN ('filled', 'fixed')
-                                    AND tt.locationable_type = ?
-                                )
-                                    THEN s.name
-
-                                WHEN tt.transaction_type IN ('refill', 'fixing')
+                                WHEN tt.transaction_type = 'out'
                                     AND tt.locationable_type = ?
                                     THEN (
-                                        SELECT CONCAT(sp.code, ' - ', sp.name)
-                                        FROM suppliers sp
-                                        WHERE sp.id = tt.locationable_id
+                                        SELECT CONCAT(s.code, ' - ', s.name)
+                                        FROM suppliers s
+                                        WHERE s.id = locationable_id
+                                        LIMIT 1
+                                    )
+
+                                WHEN tt.transaction_type = 'out'
+                                    THEN NULL
+
+                                WHEN tt.transaction_type IN ('in', 'return', 'filled', 'fixed')
+                                    THEN (
+                                        SELECT si.name
+                                        FROM sites si
+                                        WHERE si.id = site_id
+                                        LIMIT 1
+                                    )
+
+                                WHEN tt.transaction_type IN ('refill', 'fixing')
+                                    THEN (
+                                        SELECT CONCAT(s.code, ' - ', s.name)
+                                        FROM suppliers s
+                                        WHERE s.id = locationable_id
+                                        LIMIT 1
+                                    )
+
+                                WHEN tt.transaction_type = 'sell'
+                                    THEN (
+                                        SELECT CONCAT(m.code, ' - ', m.name)
+                                        FROM members m
+                                        WHERE m.id = locationable_id
                                         LIMIT 1
                                     )
 
@@ -542,10 +740,8 @@ class ReportController extends Controller
                             END LIKE ?
                         ", [
                             \App\Models\Member::class,
-                            \App\Models\Member::class,
                             \App\Models\Supplier::class,
-                            \App\Models\Supplier::class,
-                            $keyword,
+                            $keyword
                         ]);
                 });
             })
@@ -605,49 +801,18 @@ class ReportController extends Controller
                             AND tt.locationable_type IS NULL
                             THEN 'transit'
 
-                        WHEN tt.transaction_type = 'out'
-                            AND tt.locationable_type = ?
+                        WHEN tt.transaction_type IN ('out', 'sell')
                             THEN 'member'
 
-                        WHEN tt.transaction_type IN ('in', 'return')
-                            AND (
-                                tt.locationable_type = ?
-                                OR tt.locationable_type IS NULL
-                            )
+                        WHEN tt.transaction_type IN ('in', 'return', 'filled', 'fixed')
                             THEN 'site'
 
-                        WHEN tt.transaction_type = 'refill'
-                            AND tt.locationable_type = ?
+                        WHEN tt.transaction_type IN ('refill', 'fixing')
                             THEN 'supplier'
-
-                        WHEN tt.transaction_type = 'filled'
-                            AND tt.locationable_type = ?
-                            THEN 'site'
-
-                        WHEN tt.transaction_type = 'sell'
-                            AND tt.locationable_type = ?
-                            THEN 'member'
-
-                        WHEN tt.transaction_type = 'fixing'
-                            AND tt.locationable_type = ?
-                            THEN 'supplier'
-
-                        WHEN tt.transaction_type = 'fixed'
-                            AND tt.locationable_type = ?
-                            THEN 'site'
 
                         ELSE 'unknown'
                     END = ?
-                ", [
-                    \App\Models\Member::class,
-                    \App\Models\Member::class,
-                    \App\Models\Supplier::class,
-                    \App\Models\Supplier::class,
-                    \App\Models\Member::class,
-                    \App\Models\Supplier::class,
-                    \App\Models\Supplier::class,
-                    $location,
-                ]);
+                ", [$location]);
             })
 
             // Filter stock opname
@@ -671,6 +836,349 @@ class ReportController extends Controller
             ->orderByDesc('tt.created_at')
             ->get();
             return Response::successData($tubeTransaction);
+        } catch (\Throwable $th) {
+            return Response::internalError($th->getMessage());
+        }
+    }
+
+    public function exportTubeStockOpname(Request $r)
+    {
+        $user = $r->user();
+        $sites = $user->userSites->pluck('site_id');
+        $r->validate([
+            'search' => 'bail|nullable|string|max:50',
+            'date' => 'bail|nullable|date_format:Y-m-d',
+            'site' => 'bail|nullable|string',
+            'content' => 'bail|nullable|string',
+            'type' => 'bail|nullable|string',
+            'own' => 'bail|nullable|boolean',
+            'condition' => 'bail|nullable|string',
+            'location' => 'bail|nullable|string',
+            'match' => 'bail|nullable|boolean',
+            'adjust' => 'bail|nullable|boolean',
+            'paginate' => 'bail|nullable|integer|min:1'
+        ]);
+
+        try {
+            $tubes = DB::table('stock_opname_items as soi')
+            ->join('tubes as t', 't.id', '=', 'soi.tube_id')
+            ->join('stock_opnames as so', 'so.id', '=', 'soi.stock_opname_id')
+            ->leftJoin('sites as site', 'site.id', '=', 'so.site_id')
+            ->leftJoin('tube_content_types as tct', 'tct.id', '=', 'so.tube_content_type_id')
+            ->leftJoin('tube_transactions as tt', 'tt.id', '=', 'soi.tube_transaction_id')
+
+            // Hanya mengambil kolom yang dibutuhkan
+            ->select([
+                'so.date',
+                'site.name as site',
+                't.number',
+                't.type',
+                'so.tube_status as status',
+                'soi.match',
+                'soi.adjust',
+            ])
+
+            // Barcode berdasarkan tanggal transaksi
+            ->selectSub(function ($q) {
+                $q->select('tb.barcode')
+                    ->from('tube_barcodes as tb')
+                    ->whereColumn('tb.tube_id', 'soi.tube_id')
+                    ->orderByRaw("
+                        CASE
+                            WHEN tb.created_at <= tt.date THEN 0
+                            ELSE 1
+                        END
+                    ")
+                    ->orderByDesc('tb.created_at')
+                    ->orderByDesc('tb.id')
+                    ->limit(1);
+            }, 'barcode')
+
+            // Content type berdasarkan tanggal transaksi
+            ->selectSub(function ($q) {
+                $q->selectRaw("concat(tct2.code, ' - ', tct2.name)")
+                    ->from('tube_contents as tc')
+                    ->join('tube_content_types as tct2', 'tct2.id', '=', 'tc.tube_content_type_id')
+                    ->whereColumn('tc.tube_id', 'soi.tube_id')
+                    ->orderByRaw("
+                        CASE
+                            WHEN tc.created_at <= tt.date THEN 0
+                            ELSE 1
+                        END
+                    ")
+                    ->orderByDesc('tc.created_at')
+                    ->orderByDesc('tc.id')
+                    ->limit(1);
+            }, 'tube_content')
+
+            // Tube owner
+            ->selectRaw("
+                CASE
+                    WHEN t.own = 1
+                        AND NOT EXISTS (
+                            SELECT 1
+                            FROM tube_transactions as sold
+                            WHERE sold.tube_id = t.id
+                            AND sold.transaction_type = 'sell'
+                        )
+                        THEN 'Tabung DM'
+                    ELSE 'Non DM'
+                END as tube_owner
+            ")
+
+            // Position
+            ->selectRaw("
+                CASE
+                    WHEN tt.transaction_type = 'out'
+                        AND tt.locationable_type IS NULL
+                        THEN 'transit'
+
+                    WHEN tt.transaction_type IN ('out', 'sell')
+                        THEN 'member'
+
+                    WHEN tt.transaction_type IN ('in', 'return', 'filled', 'fixed')
+                        THEN 'site'
+
+                    WHEN tt.transaction_type IN ('refill', 'fixing')
+                        THEN 'supplier'
+
+                    ELSE 'unknown'
+                END as position
+            ")
+
+            // Position name
+            ->selectRaw("
+                CASE
+                    WHEN tt.transaction_type = 'out'
+                        AND tt.locationable_type IS NULL
+                        THEN 'Transit'
+
+                    WHEN tt.transaction_type = 'out'
+                        AND tt.locationable_type = ?
+                        THEN (
+                            SELECT CONCAT(m.code, ' - ', m.name)
+                            FROM members m
+                            WHERE m.id = tt.locationable_id
+                            LIMIT 1
+                        )
+
+                    WHEN tt.transaction_type = 'out'
+                        AND tt.locationable_type = ?
+                        THEN (
+                            SELECT CONCAT(s.code, ' - ', s.name)
+                            FROM suppliers s
+                            WHERE s.id = tt.locationable_id
+                            LIMIT 1
+                        )
+
+                    WHEN tt.transaction_type = 'out'
+                        THEN NULL
+
+                    WHEN tt.transaction_type IN ('in', 'return', 'filled', 'fixed')
+                        THEN (
+                            SELECT si.name
+                            FROM sites si
+                            WHERE si.id = tt.site_id
+                            LIMIT 1
+                        )
+
+                    WHEN tt.transaction_type IN ('refill', 'fixing')
+                        THEN (
+                            SELECT CONCAT(s.code, ' - ', s.name)
+                            FROM suppliers s
+                            WHERE s.id = tt.locationable_id
+                            LIMIT 1
+                        )
+
+                    WHEN tt.transaction_type = 'sell'
+                        THEN (
+                            SELECT CONCAT(m.code, ' - ', m.name)
+                            FROM members m
+                            WHERE m.id = tt.locationable_id
+                            LIMIT 1
+                        )
+
+                    ELSE 'Tidak diketahui'
+                END as position_name
+            ", [
+                \App\Models\Member::class,
+                \App\Models\Supplier::class,
+            ])
+
+            // Hak akses site
+            ->when($user->level != 0, function ($q) use ($sites) {
+                $q->whereIn('so.site_id', $sites);
+            })
+
+            // Search
+            ->when($r->input('search'), function ($q, $search) {
+                $keyword = "%{$search}%";
+
+                $q->where(function ($q) use ($keyword) {
+                    $q->where('t.number', 'like', $keyword)
+
+                        ->orWhereRaw("
+                            (
+                                SELECT tb.barcode
+                                FROM tube_barcodes tb
+                                WHERE tb.tube_id = soi.tube_id
+                                ORDER BY
+                                    CASE
+                                        WHEN tb.created_at <= tt.date THEN 0
+                                        ELSE 1
+                                    END,
+                                    tb.created_at DESC,
+                                    tb.id DESC
+                                LIMIT 1
+                            ) LIKE ?
+                        ", [$keyword])
+
+                        ->orWhereRaw("
+                            CASE
+                                WHEN tt.transaction_type = 'out'
+                                    AND tt.locationable_type IS NULL
+                                    THEN 'Transit'
+
+                                WHEN tt.transaction_type = 'out'
+                                    AND tt.locationable_type = ?
+                                    THEN (
+                                        SELECT CONCAT(m.code, ' - ', m.name)
+                                        FROM members m
+                                        WHERE m.id = tt.locationable_id
+                                        LIMIT 1
+                                    )
+
+                                WHEN tt.transaction_type = 'out'
+                                    AND tt.locationable_type = ?
+                                    THEN (
+                                        SELECT CONCAT(s.code, ' - ', s.name)
+                                        FROM suppliers s
+                                        WHERE s.id = tt.locationable_id
+                                        LIMIT 1
+                                    )
+
+                                WHEN tt.transaction_type = 'out'
+                                    THEN NULL
+
+                                WHEN tt.transaction_type IN ('in', 'return', 'filled', 'fixed')
+                                    THEN (
+                                        SELECT si.name
+                                        FROM sites si
+                                        WHERE si.id = tt.site_id
+                                        LIMIT 1
+                                    )
+
+                                WHEN tt.transaction_type IN ('refill', 'fixing')
+                                    THEN (
+                                        SELECT CONCAT(s.code, ' - ', s.name)
+                                        FROM suppliers s
+                                        WHERE s.id = tt.locationable_id
+                                        LIMIT 1
+                                    )
+
+                                WHEN tt.transaction_type = 'sell'
+                                    THEN (
+                                        SELECT CONCAT(m.code, ' - ', m.name)
+                                        FROM members m
+                                        WHERE m.id = tt.locationable_id
+                                        LIMIT 1
+                                    )
+
+                                ELSE 'Tidak diketahui'
+                            END LIKE ?
+                        ", [
+                            \App\Models\Member::class,
+                            \App\Models\Supplier::class,
+                            $keyword,
+                        ]);
+                });
+            })
+
+            // Filter tanggal
+            ->when($r->input('date'), function ($q, $date) {
+                $q->whereDate('so.date', $date);
+            })
+
+            // Filter site
+            ->when($r->input('site'), function ($q, $site) {
+                $q->where('site.uid', $site);
+            })
+
+            // Filter content
+            ->when($r->input('content'), function ($q, $content) {
+                $q->where('tct.uid', $content);
+            })
+
+            // Filter type
+            ->when($r->input('type'), function ($q, $type) {
+                $q->where('t.type', $type);
+            })
+
+            // Filter own
+            ->when($r->filled('own'), function ($q) use ($r) {
+                $isOwn = $r->boolean('own');
+
+                if ($isOwn) {
+                    $q->where('t.own', 1)
+                        ->whereNotExists(function ($sub) {
+                            $sub->selectRaw('1')
+                                ->from('tube_transactions as sold')
+                                ->whereColumn('sold.tube_id', 't.id')
+                                ->where('sold.transaction_type', 'sell');
+                        });
+                } else {
+                    $q->where(function ($q) {
+                        $q->where('t.own', 0)
+                            ->orWhereExists(function ($sub) {
+                                $sub->selectRaw('1')
+                                    ->from('tube_transactions as sold')
+                                    ->whereColumn('sold.tube_id', 't.id')
+                                    ->where('sold.transaction_type', 'sell');
+                            });
+                    });
+                }
+            })
+
+            // Filter condition
+            ->when($r->input('condition'), function ($q, $condition) {
+                $q->where('so.tube_status', $condition);
+            })
+
+            // Filter match
+            ->when($r->filled('match'), function ($q) use ($r) {
+                $q->where('soi.match', $r->boolean('match'));
+            })
+
+            // Filter match
+            ->when($r->filled('adjust'), function ($q) use ($r) {
+                $q->where('soi.adjust', $r->boolean('adjust'));
+            })
+
+            // Filter location
+            ->when($r->input('location'), function ($q, $location) {
+                $q->whereRaw("
+                    CASE
+                        WHEN tt.transaction_type = 'out'
+                            AND tt.locationable_type IS NULL
+                            THEN 'transit'
+
+                        WHEN tt.transaction_type IN ('out', 'sell')
+                            THEN 'member'
+
+                        WHEN tt.transaction_type IN ('in', 'return', 'filled', 'fixed')
+                            THEN 'site'
+
+                        WHEN tt.transaction_type IN ('refill', 'fixing')
+                            THEN 'supplier'
+
+                        ELSE 'unknown'
+                    END = ?
+                ", [$location]);
+            })
+
+            ->orderByDesc('soi.id')
+            ->get();
+            return Response::successData($tubes);
         } catch (\Throwable $th) {
             return Response::internalError($th->getMessage());
         }

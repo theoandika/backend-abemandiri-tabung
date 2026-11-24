@@ -15,15 +15,15 @@ class StockOpnameReportResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->tube->uid,
-            'date' => $this->stockOpname->created_at,
+            // 'id' => $this->tube->uid,
+            'date' => $this->stockOpname->date,
             'site' => new SimpleSiteResource($this->stockOpname->site),
             'number' => $this->tube->number,
             'barcode' => $this->tubeTransaction->barcode,
-            'tube_content' => new DetailTubeContentTypeResource($this->tubeTransaction->tube_content_type),
+            'tube_content' => new DetailTubeContentTypeResource($this->tubeTransaction?->tube_content_type),
             'type' => $this->tube->type,
             'tube_owner' => $this->tubeTransaction->tube_owner,
-            'status' => $this->tubeTransaction->tube_status,
+            'status' => $this->stockOpname->tube_status,
             'position' => $this->tubeTransaction->position,
             'position_name' => $this->tubeTransaction->position_name,
             'match' => $this->match,

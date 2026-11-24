@@ -78,23 +78,21 @@ class TubeTransaction extends Model
             get: function ($value, $attr) {
                 if ($attr['transaction_type'] == 'out' && $attr['locationable_type'] == null) {
                     return 'transit';
-                } else if ($attr['transaction_type'] == 'out' && $attr['locationable_type'] == 'App\Models\Member') {
+                } else if ($attr['transaction_type'] == 'out') {
                     return 'member';
-                } else if ($attr['transaction_type'] == 'in' && $attr['locationable_type'] == 'App\Models\Member') {
+                } else if ($attr['transaction_type'] == 'in') {
                     return 'site';
-                } else if ($attr['transaction_type'] == 'in' && $attr['locationable_type'] == null) {
+                } else if ($attr['transaction_type'] == 'return') {
                     return 'site';
-                } else if ($attr['transaction_type'] == 'return' && $attr['locationable_type'] == 'App\Models\Member') {
-                    return 'site';
-                } else if ($attr['transaction_type'] == 'refill' && $attr['locationable_type'] == 'App\Models\Supplier') {
+                } else if ($attr['transaction_type'] == 'refill') {
                     return 'supplier';
-                } else if ($attr['transaction_type'] == 'filled' && $attr['locationable_type'] == 'App\Models\Supplier') {
+                } else if ($attr['transaction_type'] == 'filled') {
                     return 'site';
-                } else if ($attr['transaction_type'] == 'sell' && $attr['locationable_type'] == 'App\Models\Member') {
+                } else if ($attr['transaction_type'] == 'sell') {
                     return 'member';
-                } else if ($attr['transaction_type'] == 'fixing' && $attr['locationable_type'] == 'App\Models\Supplier') {
+                } else if ($attr['transaction_type'] == 'fixing') {
                     return 'supplier';
-                } else if ($attr['transaction_type'] == 'fixed' && $attr['locationable_type'] == 'App\Models\Supplier') {
+                } else if ($attr['transaction_type'] == 'fixed') {
                     return 'site';
                 } else {
                     return 'unknown';
@@ -109,31 +107,33 @@ class TubeTransaction extends Model
             get: function ($value, $attr) {
                 if ($attr['transaction_type'] == 'out' && $attr['locationable_type'] == null) {
                     return 'Transit';
-                } else if ($attr['transaction_type'] == 'out' && $attr['locationable_type'] == 'App\Models\Member') {
-                    $member = Member::where('id', $attr['locationable_id'])->first();
-                    return $member->code.' - '.$member->name;
-                } else if ($attr['transaction_type'] == 'in' && $attr['locationable_type'] == 'App\Models\Member') {
+                } else if ($attr['transaction_type'] == 'out') {
+                    if ($attr['locationable_type'] == 'App\Models\Member') {
+                        $member = Member::where('id', $attr['locationable_id'])->first();
+                        return $member?->code.' - '.$member?->name;
+                    } else if ($attr['locationable_type'] == 'App\Models\Supplier') {
+                        $supplier = Supplier::where('id', $attr['locationable_id'])->first();
+                        return $supplier?->code.' - '.$supplier?->name;
+                    }
+                } else if ($attr['transaction_type'] == 'in') {
                     $site = Site::where('id', $attr['site_id'])->first();
                     return $site->name;
-                } else if ($attr['transaction_type'] == 'in' && $attr['locationable_type'] == null) {
+                } else if ($attr['transaction_type'] == 'return') {
                     $site = Site::where('id', $attr['site_id'])->first();
                     return $site->name;
-                } else if ($attr['transaction_type'] == 'return' && $attr['locationable_type'] == 'App\Models\Member') {
-                    $site = Site::where('id', $attr['site_id'])->first();
-                    return $site->name;
-                } else if ($attr['transaction_type'] == 'refill' && $attr['locationable_type'] == 'App\Models\Supplier') {
+                } else if ($attr['transaction_type'] == 'refill') {
                     $supplier = Supplier::where('id', $attr['locationable_id'])->first();
-                    return $supplier->code.' - '.$supplier->name;
-                } else if ($attr['transaction_type'] == 'filled' && $attr['locationable_type'] == 'App\Models\Supplier') {
+                    return $supplier?->code.' - '.$supplier?->name;
+                } else if ($attr['transaction_type'] == 'filled') {
                     $site = Site::where('id', $attr['site_id'])->first();
                     return $site->name;
-                } else if ($attr['transaction_type'] == 'sell' && $attr['locationable_type'] == 'App\Models\Member') {
+                } else if ($attr['transaction_type'] == 'sell') {
                     $member = Member::where('id', $attr['locationable_id'])->first();
-                    return $member->code.' - '.$member->name;
-                } else if ($attr['transaction_type'] == 'fixing' && $attr['locationable_type'] == 'App\Models\Supplier') {
+                    return $member?->code.' - '.$member?->name;
+                } else if ($attr['transaction_type'] == 'fixing') {
                     $supplier = Supplier::where('id', $attr['locationable_id'])->first();
-                    return $supplier->code.' - '.$supplier->name;
-                } else if ($attr['transaction_type'] == 'fixed' && $attr['locationable_type'] == 'App\Models\Supplier') {
+                    return $supplier?->code.' - '.$supplier?->name;
+                } else if ($attr['transaction_type'] == 'fixed') {
                     $site = Site::where('id', $attr['site_id'])->first();
                     return $site->name;
                 } else {
