@@ -56,12 +56,13 @@ class MemberManagementController extends Controller
     public function create(Request $r)
     {
         $r->validate([
-            'code' => 'bail|nullable|string|max:20',
+            'code' => 'bail|nullable|string|max:20|unique:members,code',
             'name' => 'bail|required|string|max:100',
             'address' => 'bail|nullable|string|max:200',
             'phone_number' => 'bail|nullable|numeric|max_digits:15'
         ], [
             'code.max' => 'Kode member maksimal 20 karakter',
+            'code.unique' => 'Kode member sudah digunakan',
             'name.required' => 'Masukkan nama member',
             'name.max' => 'Nama member maksimal 100 karakter',
             'address.max' => 'Alamat maksimal 200 karakter',
@@ -150,17 +151,17 @@ class MemberManagementController extends Controller
                 //     ]);
                 // }
             }
-            $start = microtime(true);
+            // $start = microtime(true);
             foreach (array_chunk($members, 1000) as $index => $chunk) {
                 DB::table('members')->upsert(
                     $chunk,
                     ['code'],
                     ['name', 'address', 'phone_number', 'updated_at']
                 );
-                logger()->info('Import Progress', [
-                    'processed' => $index + 1,
-                    'elapsed' => round(microtime(true) - $start, 2),
-                ]);
+                // logger()->info('Import Progress', [
+                //     'processed' => $index + 1,
+                //     'elapsed' => round(microtime(true) - $start, 2),
+                // ]);
             }
             DB::commit();
             if ($numberOfFailedRows > 0) {
@@ -178,12 +179,13 @@ class MemberManagementController extends Controller
     {
         $member = Member::where('uid', $uid)->firstOrFail();
         $r->validate([
-            'code' => 'bail|nullable|string|max:20',
+            'code' => 'bail|nullable|string|max:20|unique:members,code,'.$member->id,
             'name' => 'bail|required|string|max:100',
             'address' => 'bail|nullable|string|max:200',
             'phone_number' => 'bail|nullable|numeric|max_digits:15'
         ], [
             'code.max' => 'Kode member maksimal 20 karakter',
+            'code.unique' => 'Kode member sudah digunakan',
             'name.required' => 'Masukkan nama member',
             'name.max' => 'Nama member maksimal 100 karakter',
             'address.max' => 'Alamat maksimal 200 karakter',
