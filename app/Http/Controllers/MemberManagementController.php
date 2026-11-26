@@ -9,7 +9,7 @@ use App\Imports\MemberExcelImport;
 use App\Models\Member;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
+// use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 class MemberManagementController extends Controller
@@ -99,37 +99,68 @@ class MemberManagementController extends Controller
         try {
             $numberOfFailedRows = 0;
             $data = (new MemberExcelImport)->toArray($r->file('file'));
-            $validator = Validator::make($data[0], [
-                '*.kode_member' => 'bail|nullable|string|max:20|distinct',
-                '*.nama_member' => 'bail|required|string|max:100',
-                '*.alamat' => 'bail|nullable|string|max:200',
-                '*.telp' => 'bail|nullable|string|max:50'
-            ], [
-                '*.kode_member.max' => 'Kode member maksimal 20 karakter',
-                '*.kode_member.distinct' => 'Kode member :input duplikat',
-                '*.nama_member.required' => 'Masukkan nama member',
-                '*.nama_member.max' => 'Nama member maksimal 100 karakter',
-                '*.alamat.max' => 'Alamat maksimal 200 karakter',
-                '*.telp.max' => 'Nomor telepon maksimal 50 karakter'
-            ]);
-            if ($validator->fails()) {
-                return Response::validation($validator->errors()->toArray());
+            // $validator = Validator::make($data[0], [
+            //     '*.kode_member' => 'bail|nullable|string|max:20|distinct',
+            //     '*.nama_member' => 'bail|required|string|max:100',
+            //     '*.alamat' => 'bail|nullable|string|max:200',
+            //     '*.telp' => 'bail|nullable|string|max:50'
+            // ], [
+            //     '*.kode_member.max' => 'Kode member maksimal 20 karakter',
+            //     '*.kode_member.distinct' => 'Kode member :input duplikat',
+            //     '*.nama_member.required' => 'Masukkan nama member',
+            //     '*.nama_member.max' => 'Nama member maksimal 100 karakter',
+            //     '*.alamat.max' => 'Alamat maksimal 200 karakter',
+            //     '*.telp.max' => 'Nomor telepon maksimal 50 karakter'
+            // ]);
+            // if ($validator->fails()) {
+            //     return Response::validation($validator->errors()->toArray());
+            // }
+            $members = [];
+            $created_at = now();
+            $updated_at = now();
+            foreach ($data[0] as $index => $row) {
+                $members[] = [
+                    'uid' => (string) Str::orderedUuid(),
+                    'code' => $row['kode_member'],
+                    'name' => $row['nama_member'],
+                    'address' => $row['alamat'],
+                    'phone_number' => $row['telp'],
+                    'created_at' => $created_at,
+                    'updated_at' => $updated_at,
+                ];
+                // $member = Member::updateOrInsert(
+                //     ['code' => $data['kode_member']],
+                //     [
+                //         'uid' => Str::orderedUuid(),
+                //         'name' => $data['nama_member'],
+                //         'address' => $data['alamat'],
+                //         'phone_number' => $data['telp'],
+                //         'created_at' => now(),
+                //         'updated_at' => now()
+                //     ]
+                // );
+                // if (!$member) {
+                //     $numberOfFailedRows++;
+                // }
+                // if (($index + 1) % 1000 === 0) {
+                //     logger()->info('Import Progress', [
+                //         'processed' => $index + 1,
+                //         'total' => $total,
+                //         'elapsed' => round(microtime(true) - $start, 2),
+                //     ]);
+                // }
             }
-            foreach ($data[0] as $data) {
-                $member = Member::updateOrInsert(
-                    ['code' => $data['kode_member']],
-                    [
-                        'uid' => Str::orderedUuid(),
-                        'name' => $data['nama_member'],
-                        'address' => $data['alamat'],
-                        'phone_number' => $data['telp'],
-                        'created_at' => now(),
-                        'updated_at' => now()
-                    ]
+            $start = microtime(true);
+            foreach (array_chunk($members, 1000) as $index => $chunk) {
+                DB::table('members')->upsert(
+                    $chunk,
+                    ['code'],
+                    ['name', 'address', 'phone_number', 'updated_at']
                 );
-                if (!$member) {
-                    $numberOfFailedRows++;
-                }
+                logger()->info('Import Progress', [
+                    'processed' => $index + 1,
+                    'elapsed' => round(microtime(true) - $start, 2),
+                ]);
             }
             DB::commit();
             if ($numberOfFailedRows > 0) {
